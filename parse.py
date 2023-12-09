@@ -13,7 +13,7 @@ def parse(parser):
     # Training parameters
     parser.add_argument('--train', type=bool, default=True, help='To train the model or not')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
-    parser.add_argument('--epoch_start', type=int, default=1, help='epoch to start training from')
+    parser.add_argument('--start_epoch', type=int, default=1, help='epoch to start training from')
     parser.add_argument('--n_epochs', type=int, default=100, help='number of epochs')
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
     parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer')
