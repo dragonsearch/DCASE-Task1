@@ -24,13 +24,13 @@ class Training:
     the saving and loading functions as well as the reset_metrics function.
     (This is not the case for most metrics).
     """
-    def __init__(self, model, train_loader, val_loader, params) -> None:
+    def __init__(self, model, params) -> None:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model = params['model']
         self.model.to(self.device)
         self.name = params['name']
-        self.train_loader = train_loader
-        self.val_loader = val_loader
+        self.train_loader = params['train_loader']
+        self.val_loader = params['val_loader']
         self.criterion = params['criterion']
         self.optimizer = params['optimizer']
         self.start_epoch = params['start_epoch']

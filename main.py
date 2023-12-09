@@ -76,9 +76,23 @@ criterion = getattr(torch.nn, args.loss)()
 metrics = {metric : getattr(torchmetrics.classification, metric)(*args.metrics[metric]) for metric in args.metrics}
 
 # Create the training loop
+
 if args.train:
-    trainer = Training(model, train_loader, test_loader, criterion, optimizer, metrics, args.exp_name, start_epoch=args.epoch_start, end_epoch=args.n_epochs+args.epoch_start)
-    trainer.train()
+    modelhyperparams = args.__dict__
+    params = {
+        'model': model,
+        'name': args.exp_name,
+        'train_loader': train_loader,
+        'val_loader': test_loader,
+        'criterion': criterion,
+        'optimizer': optimizer,
+        'end_epoch': args.start_epoch + args.n_epochs,
+        'metrics': metrics
+    }
+    modelhyperparams.update(params)
+    trainer = Training(model, modelhyperparams)
+    dict_loss, dict_metrics = trainer.train()
+
 
 # TODO: Eval + save predictions, after dataset is correctly implemented
 #if args.eval:
