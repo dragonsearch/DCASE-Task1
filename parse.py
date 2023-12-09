@@ -1,6 +1,8 @@
 import argparse
 
+
 def parse(parser):
+
     # Model parameters
     parser.add_argument('--model_class', type=str, default='resnet18', help='model class name')
     parser.add_argument('--model_file', type=str, default='resnet18', help='model class .py file, must be in same folder as main.py')
@@ -26,7 +28,20 @@ def parse(parser):
 
     # Metrics parameter
     parser.add_argument('--metrics', type=str, default="{'MulticlassAccuracy': [10,1,'macro']}", help="torchmetrics to use example: {'MulticlassAccuracy': [25,1,\'macro\']} ")
-    args = parser.parse_args()
 
+    # Json parameters
+    parser.add_argument('--json', type=str, default='', help='json file path')
+    args = parser.parse_args()
+    args = parse_json(args, parser)
     return args
-    
+
+import json
+
+def parse_json(args, parser):
+    if args.json != '':
+        with open(args.json, 'rt') as f:
+            t_args = argparse.Namespace()
+            t_args.__dict__.update(json.load(f))
+            args = parser.parse_args(namespace=t_args)
+    return args
+
