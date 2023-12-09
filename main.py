@@ -90,7 +90,7 @@ if args.train:
         'metrics': metrics
     }
     modelhyperparams.update(params)
-    trainer = Training(model, modelhyperparams)
+    trainer = Training(modelhyperparams)
     dict_loss, dict_metrics = trainer.train()
 
 

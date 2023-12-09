@@ -24,7 +24,7 @@ class Training:
     the saving and loading functions as well as the reset_metrics function.
     (This is not the case for most metrics).
     """
-    def __init__(self, model, params) -> None:
+    def __init__(self, params) -> None:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model = params['model']
         self.model.to(self.device)
