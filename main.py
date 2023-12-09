@@ -36,6 +36,7 @@ device = torch.device(args.device)
 # The data is already split into train, and test sets.
 
 
+
 # REMOVE LATER TESTING PURPOSES
 training_data = datasets.FashionMNIST(
     root="data",
