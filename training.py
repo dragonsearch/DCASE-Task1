@@ -24,18 +24,18 @@ class Training:
     the saving and loading functions as well as the reset_metrics function.
     (This is not the case for most metrics).
     """
-    def __init__(self, model, train_loader, val_loader, criterion, optimizer, metrics, name, start_epoch=1, end_epoch=100) -> None:
+    def __init__(self, params) -> None:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.model = model
+        self.model = params['model']
         self.model.to(self.device)
-        self.name = name
-        self.train_loader = train_loader
-        self.val_loader = val_loader
-        self.criterion = criterion
-        self.optimizer = optimizer
-        self.start_epoch = start_epoch
-        self.num_epochs = end_epoch - start_epoch
-        self.metrics = metrics
+        self.name = params['name']
+        self.train_loader = params['train_loader']
+        self.val_loader = params['val_loader']
+        self.criterion = params['criterion']
+        self.optimizer = params['optimizer']
+        self.start_epoch = params['start_epoch']
+        self.num_epochs = params['end_epoch'] - params['start_epoch']
+        self.metrics = params['metrics']
         for metrics in self.metrics:
             self.metrics[metrics].to(self.device)
         
@@ -46,9 +46,9 @@ class Training:
                              for metric in self.metrics for stage in ["train", "val"]}
         self.prepare_dirs()
         # Resuming training
-        if start_epoch > 1:
+        if self.start_epoch > 1:
             self.load_dicts()
-            self.load_model(start_epoch-1)
+            self.load_model(self.start_epoch-1)
         
     
     """
@@ -121,7 +121,6 @@ class Training:
         print(f"Epoch {epoch}/{self.num_epochs}")
 
         for i, (samples, labels) in enumerate(self.train_loader):
-            time_step = time.time()
             samples = samples.to(self.device)
             labels = labels.to(self.device)
             y_pred,loss = self.train_step(samples, labels)
@@ -129,7 +128,7 @@ class Training:
             self.loss_dict["train"][epoch] += loss.item()
             self.add_to_metric(y_pred, labels)
             if (i+1) % 10 == 0:
-                print (f'Step [{i+1}/{self.n_total_steps_train}], Loss: {loss.item():.4f}, Time: {time.time()-time_step:.2f} s')
+                print (f'Step [{i+1}/{self.n_total_steps_train}], Loss: {loss.item():.4f}, Time: {time.time()-time_epoch:.2f} s')
 
         # Compute metrics
         self.compute_metrics(epoch, val=False)
@@ -211,3 +210,4 @@ class Training:
             self.reset_metrics()
             self.save_model(ep)
         print(f'Finished Training in {time.time()-time_start:.2f} s')
+        return self.loss_dict, self.metrics_dict
