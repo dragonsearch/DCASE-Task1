@@ -17,7 +17,7 @@ from utils import save_obj, save_ckpt, load_ckpt, load_obj
 import os
 import shutil
 
-class Training:
+class Trainer():
     """
     Warning: metric states are not saved to files and are reset at each epoch, 
     if your metric for some reason has a state worth keeping consider modifying 

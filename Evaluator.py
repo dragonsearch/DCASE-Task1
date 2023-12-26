@@ -17,7 +17,7 @@ import time
 from utils import save_obj, save_ckpt, load_ckpt
 
 
-class evaluation():
+class Evaluator():
     """
     Class for evaluating the model on the test set.
     This class assumes that the model is already trained and that we don't the truth labels.
@@ -30,12 +30,24 @@ class evaluation():
     TODO: Testing
     """
     def __init__(self, model, test_loader, name) -> None:
+        """
+        Args: 
+            model: trained model
+            test_loader: test loader
+            name: name of the experiment
+        
+        Parameters:
+            device: device used for training
+            n_total_steps_test: number of batches in the test loader
+            predictions: dictionary with the predictions in the format 
+                {filename: [probA, probB ..., n_classes], ...}
+        """
         self.model = model
         self.test_loader = test_loader
         self.name = name
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.n_total_steps_test = len(self.test_loader)
-        self.predictions = {} # File: probabilities of each class for each sample
+        self.predictions = {} 
 
     def save_preds(self):
         save_obj(self.predictions, self.name +"/plots/preds" + "_" + str(self.name))

@@ -4,8 +4,8 @@ import torch
 from torchmetrics.classification import (MulticlassF1Score, MulticlassPrecision, 
                                             MulticlassRecall, MulticlassPrecisionRecallCurve,
                                             MulticlassROC, MulticlassConfusionMatrix, MulticlassAccuracy)
-from training import Training
-import evaluate
+from Trainer import Trainer
+import Evaluator
 import argparse
 import numpy as np
 import parse
@@ -90,7 +90,7 @@ if args.train:
         'metrics': metrics
     }
     modelhyperparams.update(params)
-    trainer = Training(modelhyperparams)
+    trainer = Trainer(modelhyperparams)
     dict_loss, dict_metrics = trainer.train()
 
 
