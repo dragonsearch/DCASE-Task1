@@ -1,5 +1,4 @@
 import torch
-import torchvision
 from torch.utils.data import Dataset, DataLoader
 import numpy as np 
 import pandas as pd
@@ -10,20 +9,28 @@ import torchaudio
 
 # The `AudioDataset` class is a custom dataset class for loading audio samples and their corresponding
 # labels from a content file and audio directory.
+#TODO: Right padding for the audio samples (OPTIONAL -> for now we are using the default padding)
 
 class AudioDataset(Dataset):
-    def __init__(self, content_file, audio_dir, transformations ,sample_rate_target):
+    def __init__(self, content_file, audio_dir, transformations , sample_rate_target, device):
         """
         The function initializes an object with a content file and an audio directory.
         
         :param content_file: The content_file parameter is the file path to a CSV file that contains the
         content data. The data in the CSV file is separated by tabs ('\t')
         :param audio_dir: The audio directory where the audio files are stored
+        :param transformations: The transformations parameter is a transformation object that is used to
+        transform the audio samples
+        :param sample_rate_target: The sample_rate_target parameter is the target sample rate of the
+        audio samples
+        :param device: The device parameter is the device where the audio samples will be stored. It can
+        be either 'cpu' or 'cuda'
         """
        
         self.content = pd.read_csv(content_file, sep='\t')
         self.audio_dir = audio_dir
-        self.transformations = transformations
+        self.device = device
+        self.transformations = transformations.to(self.device)
         self.sample_rate_target = sample_rate_target
 
         
@@ -83,14 +90,17 @@ class AudioDataset(Dataset):
         """
         
         audio_sample_path = self._get_audio_sample_path(index)
+        filename = self._get_audio_sample_filename(index)
         label = self._get_audio_sample_label(index)
+        identifier = self._get_audio_sample_identifier(index)
         signal, sr = torchaudio.load(audio_sample_path)
+        signal = signal.to(self.device)
         #resample and mixdown if necessary (assuming dissonance in the dataset)
         signal = self._resample_if_needed(signal, sr)
         signal = self._mix_down_if_needed(signal)
         signal = self.transformations(signal)
 
-        return signal, label
+        return filename, signal, label, identifier
     
     
     def _get_audio_sample_path(self, index):
@@ -119,24 +129,50 @@ class AudioDataset(Dataset):
     
         return self.content.iloc[index, 1]
     
+    def _get_audio_sample_identifier(self, index):
+        """
+        The function `_get_audio_sample_identifier` returns the identifier of an audio sample at a given
+        index.
+        
+        :param index: The index parameter is the index of the row in the content dataframe that you want
+        to retrieve the audio sample identifier from
+        :return: the value in the first column (index 0) of the DataFrame "content" at the specified
+        index.
+        """
     
-if __name__ == "__main__":
+        return self.content.iloc[index, 2]
+    
+    def _get_audio_sample_filename(self, index):
+        """
+        The function `_get_audio_sample_filename` returns the filename of an audio sample at a given
+        index.
+        
+        :param index: The index parameter is the index of the row in the content dataframe that you want
+        to retrieve the audio sample filename from
+        :return: the value in the third column (index 2) of the DataFrame "content" at the specified
+        index.
+        """
+    
+        return self.content.iloc[index, 0].replace('audio/', '')
+    
+""" if __name__ == "__main__":
 
     SAMPLE_RATE = 16000
     # Test the dataset
 
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
-        sample_rate = 48000,
+        sample_rate = SAMPLE_RATE,
         n_fft=2048,
         hop_length=512,
         n_mels=64
     )
 
-    dataset = AudioDataset('data/TAU-urban-acoustic-scenes-2022-mobile-development/meta.csv', 'data/TAU-urban-acoustic-scenes-2022-mobile-development/audio', mel_spectrogram, SAMPLE_RATE)
+    dataset = AudioDataset('data/TAU-urban-acoustic-scenes-2022-mobile-development/meta.csv', 'data/TAU-urban-acoustic-scenes-2022-mobile-development/audio', mel_spectrogram, 22050, 'cuda')
 
     print(f"Hay un total de {len(dataset)} muestras en el dataset")
-    signal, label = dataset[0]
-    print(f"La primera muestra tiene un shape de {signal.shape} y su label es {label}")
-    print (signal)
+    filename, signal, label, identifier = dataset[0]
+    print(f"La primera muestra de nombre {filename} tiene un shape de {signal.shape} y su label es {label}, con identificador {identifier}")
+    print (f"El espectrograma de mel para el siguiente audio es: \n {signal}")
     
 
+ """

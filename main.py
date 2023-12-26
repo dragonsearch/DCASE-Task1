@@ -1,6 +1,7 @@
 import torchmetrics
 import torchsummary
 import torch
+import torchaudio
 from torchmetrics.classification import (MulticlassF1Score, MulticlassPrecision, 
                                             MulticlassRecall, MulticlassPrecisionRecallCurve,
                                             MulticlassROC, MulticlassConfusionMatrix, MulticlassAccuracy)
@@ -10,9 +11,13 @@ import argparse
 import numpy as np
 import parse
 
+from dataset import AudioDataset
+from model import BasicCNNNetwork
+
 #REMOVE LATER TESTING PURPOSES
 from torchvision import datasets
 from torchvision.transforms import ToTensor
+from torch.utils.data import DataLoader
 
 # Parse arguments
 parser = argparse.ArgumentParser(description='Runs the model with the specified parameters')
@@ -29,31 +34,32 @@ torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
 device = torch.device(args.device)
+print (f"Using device: {device}")
 
 # Load data using the dataloader
 # The data is on /data/TAU-urban-acoustic-scenes-2022-mobile-development/audio folder 
 # and the labels are on /data/TAU-urban-acoustic-scenes-2022-mobile-development/meta.csv
 # The data is already split into train, and test sets.
+#TODO: Implement the dataset class
 
+mel_spectrogram = torchaudio.transforms.MelSpectrogram(
+        sample_rate = 22050,
+        n_fft=2048,
+        hop_length=512,
+        n_mels=64
+    )
+
+audiodataset = AudioDataset(
+    'data/TAU-urban-acoustic-scenes-2022-mobile-development/meta.csv', 
+    'data/TAU-urban-acoustic-scenes-2022-mobile-development/audio', 
+    mel_spectrogram, 22050,
+    'cuda'
+    )
 
 
 # REMOVE LATER TESTING PURPOSES
-training_data = datasets.FashionMNIST(
-    root="data",
-    train=True,
-    download=True,
-    transform=ToTensor()
-)
-
-test_data = datasets.FashionMNIST(
-    root="data",
-    train=False,
-    download=True,
-    transform=ToTensor()
-)
-
-train_loader = torch.utils.data.DataLoader(training_data, batch_size=args.batch_size, shuffle=True)
-test_loader = torch.utils.data.DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
+train_loader = torch.utils.data.DataLoader(audiodataset, batch_size=args.batch_size, shuffle=True)
+#test_loader = torch.utils.data.DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
 
 
 # Import the model (from model_path)
