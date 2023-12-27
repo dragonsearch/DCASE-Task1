@@ -54,7 +54,7 @@ class AudioDataset(Dataset):
         """
         if sr != self.sample_rate_target:
 
-            resampler = torchaudio.transforms.Resample(sr, self.sample_rate_target)
+            resampler = torchaudio.transforms.Resample(sr, self.sample_rate_target).to(self.device)
             signal = resampler(signal)
       
         return signal
