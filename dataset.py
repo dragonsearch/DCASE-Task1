@@ -54,7 +54,7 @@ class AudioDataset(Dataset):
         """
         if sr != self.sample_rate_target:
 
-            resampler = torchaudio.transforms.Resample(sr, self.sample_rate_target)
+            resampler = torchaudio.transforms.Resample(sr, self.sample_rate_target).to(self.device)
             signal = resampler(signal)
       
         return signal
@@ -100,7 +100,7 @@ class AudioDataset(Dataset):
         signal = self._mix_down_if_needed(signal)
         signal = self.transformations(signal)
 
-        return filename, signal, label, identifier
+        return signal, label, filename, identifier
     
     
     def _get_audio_sample_path(self, index):
