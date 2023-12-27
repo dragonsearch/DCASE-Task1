@@ -11,9 +11,11 @@ def parse(parser):
     # General parameters
     parser.add_argument('--seed', type=int, default=42, help='random seed')
     parser.add_argument('--device', type=str, default='cuda:0', help='device to use')
+    
 
     # Training parameters
     parser.add_argument('--train', type=bool, default=True, help='To train the model or not')
+    #parser.add_argument('--train_path', type= str, default= None, help='path to the data folder')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
     parser.add_argument('--start_epoch', type=int, default=1, help='epoch to start training from')
     parser.add_argument('--n_epochs', type=int, default=100, help='number of epochs')
