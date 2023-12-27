@@ -56,10 +56,14 @@ audiodataset = AudioDataset(
     'cuda'
     )
 
+# Val Train split
+train = int(0.8 * len(audiodataset))
+test = len(audiodataset) - train
+train_data, test_data = torch.utils.data.random_split(audiodataset, [train, test])
 
 # REMOVE LATER TESTING PURPOSES
 train_loader = torch.utils.data.DataLoader(audiodataset, batch_size=args.batch_size, shuffle=True)
-#test_loader = torch.utils.data.DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
+test_loader = torch.utils.data.DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
 
 
 # Import the model (from model_path)
@@ -87,7 +91,7 @@ metrics = {metric : getattr(torchmetrics.classification, metric)(*args.metrics[m
 if args.train:
     modelhyperparams = args.__dict__
     params = {
-        'model': model,
+        'model': model.to(device),
         'name': args.exp_name,
         'train_loader': train_loader,
         'val_loader': test_loader,
