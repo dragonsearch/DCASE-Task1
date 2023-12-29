@@ -43,7 +43,30 @@ def parse_json(args, parser):
     if args.json != '':
         with open(args.json, 'rt') as f:
             t_args = argparse.Namespace()
-            t_args.__dict__.update(json.load(f))
+            param_json = json.load(f)
+            for key, value in param_json.items():
+                param_json[key] = casttype(value)
+            t_args.__dict__.update(param_json)
             args = parser.parse_args(namespace=t_args)
     return args
 
+def casttype(value):
+    type = value.find(')')
+    if type == -1:
+        print("There may be missing types in the json file, assuming str")
+        return value
+    elif value[:type] == '(str':
+        return value[type+1:]
+    elif value[:type] == '(int':
+        return int(value[type+1:])
+    elif value[:type] == '(float':
+        return float(value[type+1:])
+    elif value[:type] == '(bool':
+        return bool(value[type+1:])
+    elif value[:type] == '(list':
+        return list(value[type+1:])
+    elif value[:type] == '(tuple':
+        return tuple(value[type+1:])
+    else:
+        print("Unknown type in json file, assuming str")
+        return value
