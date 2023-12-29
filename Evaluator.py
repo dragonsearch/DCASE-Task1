@@ -69,11 +69,12 @@ class Evaluator():
         self.model, _ = load_ckpt(self.model, dummy_optimizer, "models/" + path)
 
     def eval_batches(self):
-        for i, (samples, labels, filenames) in enumerate(self.test_loader):
+        for i, (samples, labels, filenames, identifiers) in enumerate(self.eval_loader):
             samples = samples.to(self.device)
-            labels = labels.to(self.device)
             y_pred = self.model(samples)
             self.predictions.update({filename: y_pred[j].cpu().detach().numpy() for j, filename in enumerate(filenames)})
+            if i % 100 == 0:
+                print(f'Step [{i}/{self.n_total_steps_test}]')
 
     def eval(self):
         with torch.no_grad():
