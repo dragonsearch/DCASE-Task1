@@ -11,7 +11,7 @@ import argparse
 import numpy as np
 import parse
 
-from dataset import AudioDataset
+from dataset import AudioDataset, AudioDatasetEval
 from model import BasicCNNNetwork
 
 #REMOVE LATER TESTING PURPOSES
@@ -56,12 +56,20 @@ audiodataset = AudioDataset(
     'cuda'
     )
 
+audio_evaluation_dataset = AudioDatasetEval(
+    'data/TAU-urban-acoustic-scenes-2023-mobile-evaluation/evaluation_setup/fold1_test.csv', 
+    'data/TAU-urban-acoustic-scenes-2023-mobile-evaluation/audio/', 
+    mel_spectrogram, 22050,
+    'cuda'
+    )
+
 # Val Train split
 train = int(0.8 * len(audiodataset))
 test = len(audiodataset) - train
 train_data, test_data = torch.utils.data.random_split(audiodataset, [train, test])
 
-# REMOVE LATER TESTING PURPOSES
+eval_loader = torch.utils.data.DataLoader(audio_evaluation_dataset, batch_size=args.batch_size, shuffle=True)
+
 train_loader = torch.utils.data.DataLoader(audiodataset, batch_size=args.batch_size, shuffle=True)
 test_loader = torch.utils.data.DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
 
