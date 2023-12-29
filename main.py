@@ -95,7 +95,6 @@ criterion = getattr(torch.nn, args.loss)()
 metrics = {metric : getattr(torchmetrics.classification, metric)(*args.metrics[metric]) for metric in args.metrics}
 
 # Create the training loop
-
 if args.train:
     modelhyperparams = args.__dict__
     params = {
@@ -113,6 +112,17 @@ if args.train:
     trainer = Trainer(modelhyperparams)
     dict_loss, dict_metrics = trainer.train()
 
+if args.eval:
+    evaluatorhyperparams = args.__dict__ 
+    params = {
+        'model': model.to(device),
+        'eval_loader': eval_loader,
+        'name': args.exp_name,
+        'label_encoder': audiodataset.label_encoder,
+    }
+    evaluatorhyperparams.update(params)
+    evaluator = Evaluator.Evaluator(evaluatorhyperparams)
+    evaluator.eval()
 
 # TODO: Eval + save predictions, after dataset is correctly implemented
 #if args.eval:
