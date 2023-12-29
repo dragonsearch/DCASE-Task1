@@ -62,7 +62,7 @@ def casttype(value):
     elif value[:type] == '(float':
         return float(value[type+1:])
     elif value[:type] == '(bool':
-        return bool(value[type+1:])
+        return value[type+1:] == 'True'
     elif value[:type] == '(list':
         return list(value[type+1:])
     elif value[:type] == '(tuple':
