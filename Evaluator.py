@@ -6,7 +6,7 @@ import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import torchvision.datasets as datasets
 import numpy as np
-
+import pandas as pd
 import pathlib
 import pickle
 from utils import load_ckpt, save_ckpt
@@ -50,7 +50,21 @@ class Evaluator():
         self.predictions = {} 
 
     def save_preds(self):
-        save_obj(self.predictions, self.name +"/plots/preds" + "_" + str(self.name))
+        pathlib.Path("./models/" + self.name + "/preds/obj").mkdir(parents=True, exist_ok=True)
+        save_obj(self.predictions, "./models/" + self.name +"/preds/obj/preds_dict" + "_" + str(self.name))
+
+    def save_csv(self):
+        columns = ['filename', 'scene_label', 'airport', 'bus', 'metro', 'metro_station', 'park', 'public_square', 'shopping_mall', 'street_pedestrian', 'street_traffic', 'tram']
+        # Put the max probability in the scene_label column
+        for filename, probs in self.predictions.items():
+            decoded_max = self.label_encoder.inverse_transform([np.argmax(probs)])[0]
+            self.predictions[filename] = [filename, decoded_max] + list(probs)
+        df = pd.DataFrame.from_dict(self.predictions, orient='index', columns=columns)
+        df.to_csv("./models/" + self.name + "/preds/" + str(self.name) + ".csv", float_format='%.2f', index=False)
+
+    def load_model(self, path):
+        dummy_optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        self.model, _ = load_ckpt(self.model, dummy_optimizer, "models/" + path)
 
     def eval_batches(self):
         for i, (samples, labels, filenames) in enumerate(self.test_loader):
@@ -64,6 +78,7 @@ class Evaluator():
             self.model.eval()
             self.eval_batches()
             self.save_preds()
+            self.save_csv()
             self.model.train()
         print("Evaluation done")
 
