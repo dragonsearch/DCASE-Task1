@@ -127,7 +127,7 @@ class Trainer():
             # Add loss and metrics
             self.loss_dict["train"][epoch] += loss.item()
             self.add_to_metric(y_pred, labels)
-            if (i+1) % 10 == 0:
+            if (i+1) % 100 == 0:
                 print (f'Step [{i+1}/{self.n_total_steps_train}], Loss: {loss.item():.4f}, Time: {time.time()-time_epoch:.2f} s')
 
         # Compute metrics
@@ -171,7 +171,8 @@ class Trainer():
                 # Add loss and metrics
                 self.loss_dict["val"][epoch] += loss.item()
                 self.add_to_metric(y_pred, labels)
-                print (f'Step [{i+1}/{self.n_total_steps_val}], Loss: {loss.item():.4f}, Time: {time.time()-time_step:.2f} s')
+                if (i+1) % 100 == 0:
+                    print (f'Step [{i+1}/{self.n_total_steps_val}], Loss: {loss.item():.4f}, Time: {time.time()-time_step:.2f} s')
 
 
             # Compute loss
