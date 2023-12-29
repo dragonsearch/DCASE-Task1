@@ -74,7 +74,7 @@ imp = __import__(args.model_file[:args.model_file.index(".")])
 model = getattr(imp, args.model_class)().to(device)
 
 # Print the model summary
-torchsummary.summary(model, (1, 28,28),64)
+torchsummary.summary(model, (1, 64,44),32)
 
 # Create the optimizer
 optimizer = getattr(torch.optim, args.optimizer)(model.parameters(), lr=args.lr)
@@ -100,6 +100,7 @@ if args.train:
         'end_epoch': args.start_epoch + args.n_epochs,
         'metrics': metrics
     }
+
     modelhyperparams.update(params)
     trainer = Trainer(modelhyperparams)
     dict_loss, dict_metrics = trainer.train()
