@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import os
 import torchaudio
-
+from sklearn.preprocessing import LabelEncoder
 
 
 # The `AudioDataset` class is a custom dataset class for loading audio samples and their corresponding
@@ -32,7 +32,9 @@ class AudioDataset(Dataset):
         self.device = device
         self.transformations = transformations.to(self.device)
         self.sample_rate_target = sample_rate_target
-
+        self.label_encoder = LabelEncoder()
+        self.encoded_labels = self.content.copy()
+        self.encoded_labels.iloc[:, 1] = self.label_encoder.fit_transform(self.content.iloc[:, 1])
         
     def __len__(self):
         """
@@ -127,7 +129,7 @@ class AudioDataset(Dataset):
         index.
         """
     
-        return self.content.iloc[index, 1]
+        return self.encoded_labels.iloc[index, 1]
     
     def _get_audio_sample_identifier(self, index):
         """
