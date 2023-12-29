@@ -29,7 +29,7 @@ class Evaluator():
 
     TODO: Testing
     """
-    def __init__(self, model, test_loader, name) -> None:
+    def __init__(self, params) -> None:
         """
         Args: 
             model: trained model
@@ -42,11 +42,13 @@ class Evaluator():
             predictions: dictionary with the predictions in the format 
                 {filename: [probA, probB ..., n_classes], ...}
         """
-        self.model = model
-        self.test_loader = test_loader
-        self.name = name
+        self.model = params["model"]
+        self.load_model(params["eval_file"])
+        self.eval_loader = params["eval_loader"]
+        self.label_encoder = params["label_encoder"]
+        self.name = params["name"]
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.n_total_steps_test = len(self.test_loader)
+        self.n_total_steps_test = len(self.eval_loader)
         self.predictions = {} 
 
     def save_preds(self):
