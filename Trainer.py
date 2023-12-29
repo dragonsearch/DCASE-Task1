@@ -120,7 +120,7 @@ class Trainer():
         time_epoch = time.time() 
         print(f"Epoch {epoch}/{self.num_epochs}")
 
-        for i, (samples, labels) in enumerate(self.train_loader):
+        for i, (samples, labels, *rest) in enumerate(self.train_loader):
             samples = samples.to(self.device)
             labels = labels.to(self.device)
             y_pred,loss = self.train_step(samples, labels)
@@ -164,7 +164,7 @@ class Trainer():
         with torch.no_grad():
             time_step = time.time()
             print(f"Validation batch")
-            for i, (samples, labels) in enumerate(self.val_loader):
+            for i, (samples, labels,*rest) in enumerate(self.val_loader):
                 samples = samples.to(self.device)
                 labels = labels.to(self.device)
                 y_pred,loss = self.val_step(samples, labels, epoch)
