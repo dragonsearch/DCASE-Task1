@@ -1,5 +1,6 @@
 import torchmetrics
 import torchsummary
+import torchinfo
 import torch
 import torchaudio
 from torchmetrics.classification import (MulticlassF1Score, MulticlassPrecision, 
@@ -10,6 +11,7 @@ import Evaluator
 import argparse
 import numpy as np
 import parse
+import nessi
 
 from dataset import AudioDataset, AudioDatasetEval
 from model import BasicCNNNetwork
@@ -73,6 +75,7 @@ eval_loader = torch.utils.data.DataLoader(audio_evaluation_dataset, batch_size=a
 train_loader = torch.utils.data.DataLoader(audiodataset, batch_size=args.batch_size, shuffle=True)
 test_loader = torch.utils.data.DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
 
+print(f"batch size: {args.batch_size}")
 
 # Import the model (from model_path)
 
@@ -81,8 +84,12 @@ imp = __import__(args.model_file[:args.model_file.index(".")])
 # Create the model
 model = getattr(imp, args.model_class)().to(device)
 
+
+nessi.get_model_size(model,'torch', input_size=(32,1, 64,44))
+torchinfo.summary(model, input_size=(args.batch_size,1, 64,44))
 # Print the model summary
-torchsummary.summary(model, (1, 64,44),32)
+#torchsummary.summary(model, (1, 64,44),args.batch_size)
+
 
 # Create the optimizer
 optimizer = getattr(torch.optim, args.optimizer)(model.parameters(), lr=args.lr)
@@ -124,8 +131,4 @@ if args.eval:
     evaluator = Evaluator.Evaluator(evaluatorhyperparams)
     evaluator.eval()
 
-# TODO: Eval + save predictions, after dataset is correctly implemented
-#if args.eval:
-    #evaluator = evaluate.evaluation(model, test_loader, metrics, args.exp_name)
-    #evaluator.eval()
 
