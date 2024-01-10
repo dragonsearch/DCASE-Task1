@@ -17,7 +17,7 @@ from utils import save_obj, save_ckpt, load_ckpt, load_obj
 import os
 import shutil
 
-class Training:
+class Trainer():
     """
     Warning: metric states are not saved to files and are reset at each epoch, 
     if your metric for some reason has a state worth keeping consider modifying 
@@ -120,14 +120,14 @@ class Training:
         time_epoch = time.time() 
         print(f"Epoch {epoch}/{self.num_epochs}")
 
-        for i, (samples, labels) in enumerate(self.train_loader):
+        for i, (samples, labels, *rest) in enumerate(self.train_loader):
             samples = samples.to(self.device)
             labels = labels.to(self.device)
             y_pred,loss = self.train_step(samples, labels)
             # Add loss and metrics
             self.loss_dict["train"][epoch] += loss.item()
             self.add_to_metric(y_pred, labels)
-            if (i+1) % 10 == 0:
+            if (i+1) % 100 == 0:
                 print (f'Step [{i+1}/{self.n_total_steps_train}], Loss: {loss.item():.4f}, Time: {time.time()-time_epoch:.2f} s')
 
         # Compute metrics
@@ -164,14 +164,15 @@ class Training:
         with torch.no_grad():
             time_step = time.time()
             print(f"Validation batch")
-            for i, (samples, labels) in enumerate(self.val_loader):
+            for i, (samples, labels,*rest) in enumerate(self.val_loader):
                 samples = samples.to(self.device)
                 labels = labels.to(self.device)
                 y_pred,loss = self.val_step(samples, labels, epoch)
                 # Add loss and metrics
                 self.loss_dict["val"][epoch] += loss.item()
                 self.add_to_metric(y_pred, labels)
-                print (f'Step [{i+1}/{self.n_total_steps_val}], Loss: {loss.item():.4f}, Time: {time.time()-time_step:.2f} s')
+                if (i+1) % 100 == 0:
+                    print (f'Step [{i+1}/{self.n_total_steps_val}], Loss: {loss.item():.4f}, Time: {time.time()-time_step:.2f} s')
 
 
             # Compute loss
