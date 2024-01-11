@@ -226,7 +226,9 @@ class TrainerMixUp(Trainer):
         # loss = lam * self.criterion(y_pred, y_true) + (1 - lam) * self.criterion(y_pred, y_true)
         # For non onehot encoded labels (as in the original implementation):
         # loss = lam * self.criterion(y_pred, y_a) + (1 - lam) * self.criterion(y_pred, y_b)
-        loss = torch.lerp(self.criterion(y_pred, y_a), self.criterion(y_pred, y_b), lam)
+        # Notice lerp makes us swap the order of the parameters
+        loss = torch.lerp(self.criterion(y_pred, y_b), self.criterion(y_pred, y_a), lam)
+
         return loss
     
     def train_step(self, samples, labels_a, labels_b, lam):
@@ -251,7 +253,7 @@ class TrainerMixUp(Trainer):
                 lam = 1
         index = torch.randperm(x.size(0)).to(self.device)
         #mixed_x = lam * x + (1 - lam) * x[index, :]
-        mixed_x = torch.lerp(x, x[index], lam)
+        mixed_x = torch.lerp(x[index, :], x, lam)
         y_a, y_b = y, y[index]
         return mixed_x, y_a, y_b, lam
     
