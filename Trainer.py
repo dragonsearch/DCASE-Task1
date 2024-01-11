@@ -218,4 +218,11 @@ class TrainerMixUp(Trainer):
         super().__init__(params)
         self.mixup_alpha = params['mixup_alpha']
     
-    
+    def mixUpCriterion(self, y_pred, y_a, y_b, lam):
+        # There are 2 ways of doing this. One for onehot encoded labels and one 
+        # for non onehot encoded labels.
+        # For onehot encoded labels (as in original paper):
+        # loss = lam * self.criterion(y_pred, y_true) + (1 - lam) * self.criterion(y_pred, y_true)
+        # For non onehot encoded labels (as in the original implementation):
+        loss = lam * self.criterion(y_pred, y_a) + (1 - lam) * self.criterion(y_pred, y_b)
+        return loss
