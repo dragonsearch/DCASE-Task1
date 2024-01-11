@@ -249,3 +249,27 @@ class TrainerMixUp(Trainer):
         y_a, y_b = y, y[index]
         return mixed_x, y_a, y_b, lam
     
+    def train_epoch(self,epoch):
+        """
+        Trains the model for each epoch
+        """
+        time_epoch = time.time() 
+        print(f"Epoch {epoch}/{self.num_epochs}")
+
+        for i, (samples, labels, *rest) in enumerate(self.train_loader):
+            samples = samples.to(self.device)
+            labels = labels.to(self.device)
+            samples, labels_a, labels_b, lam = self.mixup_data(samples, labels)
+            y_pred,loss = self.train_step(samples, labels_a, labels_b , lam)
+            # Add loss and metrics
+            self.loss_dict["train"][epoch] += loss.item()
+            self.add_to_metric(y_pred, labels)
+            if (i+1) % 100 == 0:
+                print (f'Step [{i+1}/{self.n_total_steps_train}], Loss: {loss.item():.4f}, Time: {time.time()-time_epoch:.2f} s')
+        # Compute metrics
+        self.compute_metrics(epoch, val=False)
+
+        # Compute loss
+        self.loss_dict["train"][epoch] /= self.n_total_steps_train
+
+        print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Loss: {self.loss_dict['train'][epoch]:.4f}, Time: {time.time()-time_epoch:.2f} s")
