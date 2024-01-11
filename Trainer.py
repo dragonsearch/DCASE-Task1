@@ -212,3 +212,10 @@ class Trainer():
             self.save_model(ep)
         print(f'Finished Training in {time.time()-time_start:.2f} s')
         return self.loss_dict, self.metrics_dict
+    
+class TrainerMixUp(Trainer):
+    def __init__(self, params) -> None:
+        super().__init__(params)
+        self.mixup_alpha = params['mixup_alpha']
+    
+    
