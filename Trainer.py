@@ -225,4 +225,12 @@ class TrainerMixUp(Trainer):
         # loss = lam * self.criterion(y_pred, y_true) + (1 - lam) * self.criterion(y_pred, y_true)
         # For non onehot encoded labels (as in the original implementation):
         loss = lam * self.criterion(y_pred, y_a) + (1 - lam) * self.criterion(y_pred, y_b)
-        return loss
+    def train_step(self, samples, labels_a, labels_b, lam):
+        # Forward pass
+        self.optimizer.zero_grad()
+        y_pred = self.model(samples)
+        loss = self.mixUpCriterion(y_pred, labels_a, labels_b, lam)
+        # Backward and optimize
+        loss.backward()
+        self.optimizer.step()
+        return y_pred, loss
