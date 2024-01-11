@@ -121,6 +121,7 @@ if args.train:
     modelhyperparams.update(params)
     if args.mixup_alpha:
         modelhyperparams['mixup_alpha'] = args.mixup_alpha
+        modelhyperparams['mixup_prob'] = args.mixup_prob
         from Trainer import TrainerMixUp as Trainer
     trainer = Trainer(modelhyperparams)
     dict_loss, dict_metrics = trainer.train()

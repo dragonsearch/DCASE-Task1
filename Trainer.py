@@ -217,6 +217,7 @@ class TrainerMixUp(Trainer):
     def __init__(self, params) -> None:
         super().__init__(params)
         self.mixup_alpha = params['mixup_alpha']
+        self.mixup_prob = params['mixup_prob'] if 'mixup_prob' in params else 0
     
     def mixUpCriterion(self, y_pred, y_a, y_b, lam):
         # There are 2 ways of doing this. One for onehot encoded labels and one 
@@ -244,7 +245,10 @@ class TrainerMixUp(Trainer):
         if self.mixup_alpha > 0:
             lam =  np.random.beta(self.mixup_alpha, self.mixup_alpha)
         else:
-            lam = 1    
+            lam = 1
+        if self.mixup_prob > 0:
+            if np.random.rand() > self.mixup_prob:
+                lam = 1
         index = torch.randperm(x.size(0)).to(self.device)
         #mixed_x = lam * x + (1 - lam) * x[index, :]
         mixed_x = torch.lerp(x, x[index], lam)
