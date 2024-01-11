@@ -12,7 +12,7 @@ from sklearn.preprocessing import LabelEncoder
 #TODO: Right padding for the audio samples (OPTIONAL -> for now we are using the default padding)
 
 class AudioDataset(Dataset):
-    def __init__(self, content_file, audio_dir, transformations , sample_rate_target, device):
+    def __init__(self, content_file, audio_dir, transformations , sample_rate_target, device, label_encoder):
         """
         The function initializes an object with a content file and an audio directory.
         
@@ -32,7 +32,7 @@ class AudioDataset(Dataset):
         self.device = device
         self.transformations = transformations.to(self.device)
         self.sample_rate_target = sample_rate_target
-        self.label_encoder = LabelEncoder()
+        self.label_encoder = label_encoder
         self.encoded_labels = self.content.copy()
         self.encoded_labels.iloc[:, 1] = self.label_encoder.fit_transform(self.content.iloc[:, 1])
         

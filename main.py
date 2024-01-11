@@ -16,6 +16,8 @@ import nessi
 from dataset import AudioDataset, AudioDatasetEval
 from model import BasicCNNNetwork
 
+from sklearn.preprocessing import LabelEncoder, LabelBinarizer
+
 #REMOVE LATER TESTING PURPOSES
 from torchvision import datasets
 from torchvision.transforms import ToTensor
@@ -55,7 +57,8 @@ audiodataset = AudioDataset(
     'data/TAU-urban-acoustic-scenes-2022-mobile-development/meta.csv', 
     'data/TAU-urban-acoustic-scenes-2022-mobile-development/audio', 
     mel_spectrogram, 22050,
-    'cuda'
+    'cuda',
+    label_encoder=LabelEncoder()
     )
 
 audio_evaluation_dataset = AudioDatasetEval(
