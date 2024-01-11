@@ -235,4 +235,16 @@ class TrainerMixUp(Trainer):
         # Backward and optimize
         loss.backward()
         self.optimizer.step()
-        return y_pred, loss
+    
+    def mixup_data(self, x, y):
+        # Similar to the original implementation  
+        # Remember giving alpha = 0 is the same as not using mixup
+        if self.mixup_alpha > 0:
+            lam =  np.random.beta(self.mixup_alpha, self.mixup_alpha)
+        else:
+            lam = 1    
+        index = torch.randperm(x.size(0)).to(self.device)
+        mixed_x = lam * x + (1 - lam) * x[index, :]
+        y_a, y_b = y, y[index]
+        return mixed_x, y_a, y_b, lam
+    
