@@ -235,6 +235,7 @@ class TrainerMixUp(Trainer):
         # Backward and optimize
         loss.backward()
         self.optimizer.step()
+        return y_pred, loss
     
     def mixup_data(self, x, y):
         # Similar to the original implementation  
