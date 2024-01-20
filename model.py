@@ -93,7 +93,7 @@ class Model(nn.Module):
 class BasicCNNNetwork(nn.Module):
     def __init__(self):
         super().__init__()
-        self.mixstyle = MixStyle(p=0.5, alpha=0.1)
+        self.mixstyle = MixStyle(p=0.5, alpha=0.1, mix='random')
         #4 conv blocks -> flatten -> linear -> softmax
         self.conv1d = nn.Sequential(
             nn.Conv2d(
@@ -155,7 +155,25 @@ class BasicCNNNetwork(nn.Module):
         
         return predictions
     
+class BaselineMLPNetwork(nn.Module):
+        "No cnn, just a simple MLP"
+        def __init__(self):
+            super().__init__()
+            self.flatten = nn.Flatten()
+            self.linear_relu_stack = nn.Sequential(
+                nn.Linear(2816, 4096),
+                nn.ReLU(),
+                nn.Linear(4096, 2048),
+                nn.ReLU(),
+                nn.Linear(2048, 512),
+                nn.ReLU(),
+                nn.Linear(512, 10),
+            )
+            self.softmax = nn.Softmax(dim=1)
+        def forward(self, x):
+            x = self.flatten(x)
+            x = self.linear_relu_stack(x)
+            predictions = self.softmax(x)
+            return predictions
 
 
-
-    
