@@ -26,6 +26,37 @@ import optuna
 
 # Absolute paths
 import os
+def get_model(params):
+    """
+    Imports the model from the model_file argument and returns it
+    If you wish to use a different model, you can change the model_file argument
+    or model_class argument
+    """
+    # Import the model (from model_path)
+    model_file = params['model_file']
+    imp = __import__(model_file[:model_file.index(".")])
+
+    model_class = params["model_class"]
+    # Create the model
+    device = params["device"]
+    model = getattr(imp, model_class)().to(device)
+    return model
+
+def get_optimizer(model, params):
+    optimizer_str = params['optimizer']
+    lr_str = params['lr']
+    optimizer = getattr(torch.optim, optimizer_str)(model.parameters(), lr=lr_str)
+    return optimizer
+
+def get_criterion(params):
+    loss = params['loss']
+    criterion = getattr(torch.nn, loss)()
+    return criterion
+
+def get_metrics(params):
+    metrics_str = params['metrics']
+    metrics = {metric : getattr(torchmetrics.classification, metric)(*metrics_str[metric]) for metric in metrics_str}
+    return metrics
 def objective(trial, params):
     params_copy = params.copy()
     trial_model_params = {
