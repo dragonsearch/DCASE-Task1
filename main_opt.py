@@ -26,3 +26,22 @@ import optuna
 
 # Absolute paths
 import os
+#
+# General config
+#
+do_training = True
+do_eval = False
+# Create the training loop
+if do_training:
+
+    params = {
+        'abspath': os.path.abspath('.'),
+        #"eval_file" : os.path.abspath("resnet18/ckpt/model_resnet18_1.pth"),
+        'summary': False,
+        'nessi': False
+    }
+    #Optuna study
+    study = optuna.create_study(direction="minimize")
+    study.optimize(lambda trial: objective(trial, params), n_trials=100)
+    #print('Best hyperparameters found were: ', results.get_best_result().config)
+
