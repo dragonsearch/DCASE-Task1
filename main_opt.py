@@ -26,6 +26,57 @@ import optuna
 
 # Absolute paths
 import os
+def objective(trial, params):
+    params_copy = params.copy()
+    trial_model_params = {
+        'batch_size': trial.suggest_categorical('batch_size', [32, 64, 128]),
+        'name': trial.suggest_categorical('exp_name', ["OptTest"]) + str(trial.number),
+        'end_epoch': trial.suggest_categorical('end_epoch', [2, 3]),
+        "start_epoch": 1,
+        'lr' : trial.suggest_float('lr', 1e-4, 1e-1, log=True),
+        'mixup_alpha': trial.suggest_categorical('mixup_alpha', [0]),
+        'mixup_prob': trial.suggest_categorical('mixup_prob', [0]),
+        'optimizer': "Adam",
+        "loss": "CrossEntropyLoss",
+        'metrics': {'MulticlassAccuracy': [10,1,'macro']},
+        'device': "cuda",
+        'model_file': 'model.py',
+        "model_class": "BasicCNNNetwork",
+        "label_encoder": LabelEncoder,
+        "seed": 42,
+    }
+    params_copy.update(trial_model_params)
+    torch.device(params_copy['device'])
+    torch.manual_seed(params_copy['seed'])
+    np.random.seed(params_copy['seed'])
+
+    train_loader, val_loader, _ = load_dataloaders(trial, params_copy)
+    model = get_model(params_copy)
+    optimizer = get_optimizer(model, params_copy)
+    criterion = get_criterion(params_copy)
+    metrics = get_metrics(params_copy)
+
+    if 'summary' in params_copy and params_copy['summary']:
+        torchinfo.summary(model, input_size=(params_copy['batch_size'],1, 64,44))
+    if 'nessi' in params_copy and params_copy['nessi']:
+        nessi.get_model_size(model,'torch', input_size=(params_copy['batch_size'],1, 64,44))
+    if 'mixup_alpha' in params_copy and 'mixup_prob' in params_copy:
+        from Trainer import TrainerMixUp as Trainer
+
+    trial_model_params = {
+        'model': model,
+        'criterion': criterion,
+        'optimizer': optimizer,
+        'metrics': metrics,
+        'train_loader': train_loader,
+        'val_loader': val_loader,
+    }
+
+    params_copy.update(trial_model_params)
+    trainer = Trainer(params_copy)
+    loss_dict, metrics_dict = trainer.train()
+
+    return loss_dict['val'][max(loss_dict['val'].keys())]
 #
 # General config
 #
