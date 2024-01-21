@@ -26,6 +26,59 @@ import optuna
 
 # Absolute paths
 import os
+
+def load_dataloaders(trial, params):
+    # Load data using the dataloader
+    # The data is on /data/TAU-urban-acoustic-scenes-2022-mobile-development/audio folder 
+    # and the labels are on /data/TAU-urban-acoustic-scenes-2022-mobile-development/meta.csv
+    # The data is already split into train, and test sets.
+    """
+    Could be split into more functions later. Just so parameters are not hardcoded
+    """
+    data_training_path = params['abspath'] + '/data/TAU-urban-acoustic-scenes-2022-mobile-development/'
+    data_evaluation_path = params['abspath'] + '/data/TAU-urban-acoustic-scenes-2023-mobile-evaluation/'
+    mel_spectrogram = torchaudio.transforms.MelSpectrogram(
+            sample_rate = 22050,
+            n_fft=2048,
+            hop_length=512,
+            n_mels=64
+        )
+
+    audiodataset = AudioDataset(
+        data_training_path + 'meta.csv', 
+        data_training_path + 'audio', 
+        mel_spectrogram, 22050,
+        'cuda',
+        label_encoder=LabelEncoder()
+        )
+
+    audio_evaluation_dataset = AudioDatasetEval(
+        data_evaluation_path + 'evaluation_setup/fold1_test.csv', 
+        data_evaluation_path + 'audio', 
+        mel_spectrogram, 22050,
+        'cuda'
+        )
+
+    # Val Train split
+    train = int(0.8 * len(audiodataset))
+    val = len(audiodataset) - train
+    train_data, val_data = torch.utils.data.random_split(audiodataset, [train, val])
+
+    test_loader = torch.utils.data.DataLoader(audio_evaluation_dataset, batch_size=params['batch_size'], shuffle=True)
+
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size=params['batch_size'], shuffle=True)
+    val_loader = torch.utils.data.DataLoader(val_data, batch_size=params['batch_size'], shuffle=True)
+
+    # MNIST dataset for testing
+    """
+    mnist_dataset = datasets.MNIST(root="mnist", train=True, download=True, transform=ToTensor())
+    mnist_test_dataset = datasets.MNIST(root="mnist", train=False, download=True, transform=ToTensor())
+
+    train_loader = DataLoader(mnist_dataset, batch_size=64, shuffle=True)
+    val_loader = DataLoader(mnist_test_dataset, batch_size=64, shuffle=True)
+    """
+    return train_loader, val_loader, test_loader
+
 def get_model(params):
     """
     Imports the model from the model_file argument and returns it
@@ -57,6 +110,7 @@ def get_metrics(params):
     metrics_str = params['metrics']
     metrics = {metric : getattr(torchmetrics.classification, metric)(*metrics_str[metric]) for metric in metrics_str}
     return metrics
+
 def objective(trial, params):
     params_copy = params.copy()
     trial_model_params = {
@@ -108,6 +162,8 @@ def objective(trial, params):
     loss_dict, metrics_dict = trainer.train()
 
     return loss_dict['val'][max(loss_dict['val'].keys())]
+
+
 #
 # General config
 #
@@ -126,4 +182,5 @@ if do_training:
     study = optuna.create_study(direction="minimize")
     study.optimize(lambda trial: objective(trial, params), n_trials=100)
     #print('Best hyperparameters found were: ', results.get_best_result().config)
+
 
