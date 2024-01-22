@@ -36,6 +36,7 @@ class Trainer():
         self.start_epoch = params['start_epoch']
         self.num_epochs = params['end_epoch'] - params['start_epoch']
         self.metrics = params['metrics']
+        self.abspath = os.path.abspath(params['abspath'])
         for metrics in self.metrics:
             self.metrics[metrics].to(self.device)
         
@@ -60,6 +61,7 @@ class Trainer():
             os.makedirs('models/' + self.name + "/plots", exist_ok=True) # Recursivity of makedirs -> exist_ok=True
         else:
             print("Some directory with that name already exists, remove it? (y/n)")
+            print("I'm trying to remove: " + self.abspath + "/models/" + self.name)
             answer = input()
             if answer == "y":
                 shutil.rmtree('models/' + self.name)

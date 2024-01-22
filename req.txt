@@ -147,7 +147,6 @@ tk=8.6.12=h1ccaba5_0
 tomli=2.0.1=py39h06a4308_0
 torchaudio=2.1.1=py39_cu121
 torchmetrics=0.11.4=py39h2f386ee_1
-torchsummary=1.5.1=pypi_0
 torchtriton=2.1.0=py39
 torchvision=0.16.1=py39_cu121
 tornado=6.3.3=py39h5eee18b_0
@@ -160,3 +159,4 @@ yaml=0.2.5=h7b6447c_0
 zipp=3.11.0=py39h06a4308_0
 zlib=1.2.13=hd590300_5
 zstd=1.5.5=hc292b87_0
+optuna=3.5.0=pyhd8ed1ab_0
