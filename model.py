@@ -90,70 +90,59 @@ class Model(nn.Module):
         
         return x
 
-class BasicCNNNetwork(nn.Module):
+class BaselineDCASECNN(nn.Module):
     def __init__(self):
         super().__init__()
-        self.mixstyle = MixStyle(p=0.5, alpha=0.1, mix='random')
-        #4 conv blocks -> flatten -> linear -> softmax
-        self.conv1d = nn.Sequential(
-            nn.Conv2d(
-                in_channels = 1,
-                out_channels =16,
-                kernel_size = 3,
-                stride = 1,
-                padding = 2
-            ),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2)
-        )
-        self.conv2d = nn.Sequential(
-            nn.Conv2d(
-                in_channels = 16,
-                out_channels =32,
-                kernel_size = 3,
-                stride = 1,
-                padding = 2
-            ),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2)
-        )
-        self.conv3d = nn.Sequential(
-            nn.Conv2d(
-                in_channels = 32,
-                out_channels =64,
-                kernel_size = 3,
-                stride = 1,
-                padding = 2
-            ),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2)
-        )
-        self.conv4d = nn.Sequential(
-            nn.Conv2d(
-                in_channels = 64,
-                out_channels =128,
-                kernel_size = 3,
-                stride = 1,
-                padding = 2
-            ),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2)
-        )
-        self.flatten = nn.Flatten()
-        self.linear = nn.Linear(128 * 5 * 4, 10)
-        self.softmax = nn.Softmax(dim=1)
-    def forward(self, x):
-        x = self.conv1d(x)
-        x = self.mixstyle(x)
-        x = self.conv2d(x)
-        x = self.conv3d(x)
-        x = self.conv4d(x)
-        x = self.flatten(x)
-        logits = self.linear(x)
-        predictions = self.softmax(logits)
-
+        self.conv2d_1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, padding=1)
+        self.batch_norm_1 = nn.BatchNorm2d(16)
+        self.activation_1 = nn.ReLU()
         
-        return predictions
+        self.conv2d_2 = nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, padding=1)
+        self.batch_norm_2 = nn.BatchNorm2d(16)
+        self.activation_2 = nn.ReLU()
+        
+        self.max_pooling_1 = nn.MaxPool2d(kernel_size=5, stride=5)
+        self.dropout_1 = nn.Dropout(0.5)
+        
+        self.conv2d_3 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3)
+        self.batch_norm_3 = nn.BatchNorm2d(32)
+        self.activation_3 = nn.ReLU()
+        
+        self.max_pooling_2 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.dropout_2 = nn.Dropout(0.5)
+        
+        self.flatten = nn.Flatten()
+        self.dense_1 = nn.Linear(480, 100)
+        self.dropout_3 = nn.Dropout(0.5)
+        self.dense_2 = nn.Linear(100, 10)
+
+    def forward(self, x):
+        x = self.conv2d_1(x)
+        x = self.batch_norm_1(x)
+        x = self.activation_1(x)
+        
+        x = self.conv2d_2(x)
+        x = self.batch_norm_2(x)
+        x = self.activation_2(x)
+        
+        x = self.max_pooling_1(x)
+        x = self.dropout_1(x)
+        
+        x = self.conv2d_3(x)
+        x = self.batch_norm_3(x)
+        x = self.activation_3(x)
+        
+        x = self.max_pooling_2(x)
+        x = self.dropout_2(x)
+        
+        x = self.flatten(x)
+        x = self.dense_1(x)
+        x = self.dropout_3(x)
+        x = self.dense_2(x)
+
+        return x
+    
+
     
 class BaselineMLPNetwork(nn.Module):
         "No cnn, just a simple MLP"
