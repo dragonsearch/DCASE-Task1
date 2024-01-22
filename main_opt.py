@@ -11,8 +11,6 @@ import numpy as np
 import nessi
 
 from dataset import AudioDataset, AudioDatasetEval
-from model import BasicCNNNetwork
-
 from sklearn.preprocessing import LabelEncoder, LabelBinarizer
 
 #REMOVE LATER TESTING PURPOSES
