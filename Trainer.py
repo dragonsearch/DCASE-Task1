@@ -13,7 +13,7 @@ from torchmetrics.classification import (MulticlassF1Score, MulticlassPrecision,
                                             MulticlassRecall, MulticlassPrecisionRecallCurve,
                                             MulticlassROC, MulticlassConfusionMatrix, MulticlassAccuracy)
 import time
-from utils import save_obj, save_ckpt, load_ckpt, load_obj
+from utils import save_obj, save_ckpt, load_ckpt, load_obj, dict_to_txt
 import os
 import shutil
 
@@ -45,7 +45,9 @@ class Trainer():
         self.loss_dict = {stage : {i:0 for i in range(1,self.num_epochs+1)} for stage in ["train", "val"]}
         self.metrics_dict = { stage : {str(metric) : {i:0 for i in range(1,self.num_epochs+1)} }
                              for metric in self.metrics for stage in ["train", "val"]}
+        self.params = params.copy()
         self.prepare_dirs()
+        self.save_exec_params()
         # Resuming training
         if self.start_epoch > 1:
             self.load_dicts()
@@ -95,6 +97,10 @@ class Trainer():
         print("Saving model with loss: ", self.loss_dict["train"][epoch], "as ", ckpt_path)
         self.save_dicts()
 
+    def save_exec_params(self):
+        save_obj(self.params, 'models/' + self.name + "/plots/exec_params" + "_" + str(self.name))
+        dict_to_txt(self.params, 'models/' + self.name + "/plots/exec_params" + "_" + str(self.name) + ".txt")
+
     def reset_metrics(self):
         """
         Torchmetrics reset
@@ -142,7 +148,7 @@ class Trainer():
 
 
 
-    def train_step(self, samples, labels):
+    def train_step(self, samples, labels):  
         """
         Trains the model for each batch
         """

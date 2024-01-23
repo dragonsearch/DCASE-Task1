@@ -124,7 +124,7 @@ def objective(trial, params):
         'metrics': {'MulticlassAccuracy': [10,1,'macro']},
         'device': "cuda",
         'model_file': 'model.py',
-        "model_class": "BasicCNNNetwork",
+        "model_class": "BaselineDCASECNN",
         "label_encoder": LabelEncoder,
         "seed": 42,
     }
