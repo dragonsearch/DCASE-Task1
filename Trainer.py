@@ -45,6 +45,8 @@ class Trainer():
         self.loss_dict = {stage : {i:0 for i in range(1,self.num_epochs+1)} for stage in ["train", "val"]}
         self.metrics_dict = { stage : {str(metric) : {i:0 for i in range(1,self.num_epochs+1)} }
                              for metric in self.metrics for stage in ["train", "val"]}
+        self.params = params.copy()
+        self.save_exec_params()
         self.prepare_dirs()
         # Resuming training
         if self.start_epoch > 1:
@@ -94,6 +96,10 @@ class Trainer():
         save_ckpt(self.model, self.optimizer, ckpt_path, epoch)
         print("Saving model with loss: ", self.loss_dict["train"][epoch], "as ", ckpt_path)
         self.save_dicts()
+
+    def save_exec_params(self):
+        save_obj(self.params, 'models/' + self.name + "/plots/exec_params" + "_" + str(self.name))
+        print("Saving execution parameters as ", 'models/' + self.name + "/plots/exec_params" + "_" + str(self.name))
 
     def reset_metrics(self):
         """
