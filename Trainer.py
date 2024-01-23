@@ -46,6 +46,8 @@ class Trainer():
         self.metrics_dict = { stage : {str(metric) : {i:0 for i in range(1,self.num_epochs+1)} }
                              for metric in self.metrics for stage in ["train", "val"]}
         self.params = params.copy()
+        self.params = params.copy()
+        self.save_exec_params()
         self.prepare_dirs()
         self.save_exec_params()
         # Resuming training
