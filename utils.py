@@ -48,6 +48,15 @@ def load_ckpt(model,optimizer,PATH):
     print(f'Loaded model (ckpt) from: {PATH}')
     return model, optimizer
 
+def dict_to_txt(dictionary, PATH):
+    """
+    Converts a dictionary to a string and saves it to newly created a txt file
+    """
+    with open(PATH, 'w') as f:
+        print(dictionary, file=f)
+    print(f'Saved dictionary into: {PATH} as a txt file')
+
+
 
 def count_and_print_least_common_classes(arr,idx2class):
     # Calculate counts of each class
