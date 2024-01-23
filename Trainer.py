@@ -6,12 +6,12 @@ import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import torchvision.datasets as datasets
 import numpy as np
-import torchsummary
 import pathlib
 import pickle
 from torchmetrics.classification import (MulticlassF1Score, MulticlassPrecision, 
                                             MulticlassRecall, MulticlassPrecisionRecallCurve,
                                             MulticlassROC, MulticlassConfusionMatrix, MulticlassAccuracy)
+from torch.utils.tensorboard import SummaryWriter  # Import SummaryWriter from torch.utils.tensorboard
 import time
 from utils import save_obj, save_ckpt, load_ckpt, load_obj
 import os
@@ -36,6 +36,10 @@ class Trainer():
         self.start_epoch = params['start_epoch']
         self.num_epochs = params['end_epoch'] - params['start_epoch']
         self.metrics = params['metrics']
+        self.writer = SummaryWriter(f'runs/{self.name}') # Create SummaryWriter object
+        self.early_stopping_patience = params['early_stopping_patience']
+        self.early_stopping_counter = 0
+        self.best_val_loss = float('inf')
         for metrics in self.metrics:
             self.metrics[metrics].to(self.device)
         
@@ -73,6 +77,7 @@ class Trainer():
     def save_dicts(self):
         save_obj(self.loss_dict, 'models/' + self.name + "/plots/loss_dict" + "_" + str(self.name))
         save_obj(self.metrics_dict, 'models/' + self.name + "/plots/metrics_dict" + "_" + str(self.name))
+        self.writer.close()
 
     def load_dicts(self):
         self.loss_dict = load_obj('models/' + self.name +"/plots/loss_dict" + "_" + str(self.name))
@@ -127,6 +132,12 @@ class Trainer():
             # Add loss and metrics
             self.loss_dict["train"][epoch] += loss.item()
             self.add_to_metric(y_pred, labels)
+
+            #Add scalars to a Tensorboard
+            step = epoch * len(self.train_loader) + i
+            self.writer.add_scalar('Loss/train', loss.item(), step)
+            for metric_name, metric in self.metrics.items():
+                self.writer.add_scalar(f'{metric_name}/Train', metric.compute(), step) 
             if (i+1) % 100 == 0:
                 print (f'Step [{i+1}/{self.n_total_steps_train}], Loss: {loss.item():.4f}, Time: {time.time()-time_epoch:.2f} s')
 
@@ -171,6 +182,11 @@ class Trainer():
                 # Add loss and metrics
                 self.loss_dict["val"][epoch] += loss.item()
                 self.add_to_metric(y_pred, labels)
+                #Add scalars to Tensorboard
+                step = epoch * len(self.val_loader) + i
+                self.writer.add_scalar('Loss/Val', loss.item(), step)
+                for metric_name, metric in self.metrics.items():
+                    self.writer.add_scalar(f'{metric_name}/Val', metric.compute(), step)
                 if (i+1) % 100 == 0:
                     print (f'Step [{i+1}/{self.n_total_steps_val}], Loss: {loss.item():.4f}, Time: {time.time()-time_step:.2f} s')
 
@@ -180,6 +196,21 @@ class Trainer():
             # Compute metrics
             self.compute_metrics(epoch, val=True)
             
+            # Calcular la pérdida promedio en el conjunto de validación
+            val_loss = self.loss_dict["val"][epoch] / self.n_total_steps_val
+
+            # Verificar si la pérdida actual es mejor que la mejor pérdida registrada
+            if val_loss < self.best_val_loss:
+                self.best_val_loss = val_loss
+                self.early_stopping_counter = 0
+            else:
+                self.early_stopping_counter += 1
+
+            # Detener el entrenamiento si no hay mejora después de cierta cantidad de épocas
+            if self.early_stopping_counter >= self.early_stopping_patience:
+                print(f'Early stopping at epoch {epoch} due to no improvement in validation loss.')
+                return True  # Indica que el entrenamiento debe detenerse
+
             print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Val Loss: {self.loss_dict['val'][epoch]:.4f}, Time: {time.time()-time_step:.2f} s")
         self.model.train()
         print( "Validation ended")
@@ -199,7 +230,7 @@ class Trainer():
             else:
                 self.metrics_dict['train'][str(metric)][epoch] = self.metrics[metric].compute()
 
-
+    
 
     def train(self):
         self.model.train()

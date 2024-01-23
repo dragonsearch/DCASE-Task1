@@ -1,5 +1,4 @@
 import torchmetrics
-import torchsummary
 import torchinfo
 import torch
 import torchaudio

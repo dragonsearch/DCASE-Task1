@@ -1,1 +1,1 @@
-python ./main.py --model_class Model --model_file model.py --exp_name resnet18 --start_epoch 1 --n_epochs 3 --json params.json
+python ./main.py --model_class BasicCNNNetwork --model_file model.py --exp_name resnet18 --start_epoch 1 --n_epochs 3 --json params.json

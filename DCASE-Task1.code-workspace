@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "DCASE-Task1",
+			"path": "."
+		},
+		{
+			"name": "data",
+			"path": "../data"
+		}
+	],
+	"settings": {}
+}
