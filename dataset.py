@@ -5,6 +5,8 @@ import pandas as pd
 import os
 import torchaudio
 from sklearn.preprocessing import LabelEncoder
+from torch.utils.tensorboard import SummaryWriter
+from matplotlib import pyplot as plt
 
 
 # The `AudioDataset` class is a custom dataset class for loading audio samples and their corresponding
@@ -35,6 +37,10 @@ class AudioDataset(Dataset):
         self.label_encoder = label_encoder
         self.encoded_labels = self.content.copy()
         self.encoded_labels.iloc[:, 1] = self.label_encoder.fit_transform(self.content.iloc[:, 1])
+
+        #Tensorboard writer
+
+        self.writer = SummaryWriter()
         
     def __len__(self):
         """
@@ -81,6 +87,19 @@ class AudioDataset(Dataset):
    
         return signal
     
+    def _save_audio_to_tensorboard(self, audio, label, filename, identifier):
+        self.writer.add_audio(f'Audio/{label}/{filename}', audio, sample_rate=self.sample_rate_target)
+    
+    def _save_mel_spectrogram_to_tensorboard(self, mel_spectrogram, label, filename, identifier):
+        plt.imshow(torch.log(mel_spectrogram[0].cpu() + 1e-9).numpy(), cmap='viridis', aspect='auto', origin='lower')
+        plt.title(f'Mel Spectrogram - {label} - {filename}')
+        plt.xlabel('Time')
+        plt.ylabel('Mel Filter')
+        plt.colorbar(format='%+2.0f dB')
+        plt.tight_layout()
+
+        self.writer.add_figure(f'Mel_Spectrogram/{label}/{filename}', plt.gcf())
+    
     def __getitem__(self, index):
         """
         The `__getitem__` function returns the audio signal and label for a given index in a dataset.
@@ -100,8 +119,13 @@ class AudioDataset(Dataset):
         #resample and mixdown if necessary (assuming dissonance in the dataset)
         signal = self._resample_if_needed(signal, sr)
         signal = self._mix_down_if_needed(signal)
+
+        # Save audio and mel spectrogram to TensorBoard
+        self._save_audio_to_tensorboard(signal, label, filename, identifier)
+
         signal = self.transformations(signal)
 
+        self._save_mel_spectrogram_to_tensorboard(signal, label, filename, identifier)
         return signal, label, filename, identifier
     
     
