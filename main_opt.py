@@ -127,6 +127,7 @@ def objective(trial, params):
         'model_file': 'model.py',
         "model_class": "BaselineDCASECNN",
         "early_stopping_patience": 10,
+        "early_stopping_threshold": 0.01,
         "label_encoder": LabelEncoder,
         "seed": 42,
     }

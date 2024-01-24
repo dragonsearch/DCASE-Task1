@@ -39,6 +39,7 @@ class Trainer():
         self.abspath = os.path.abspath(params['abspath'])
         self.writer = SummaryWriter(f'runs/{self.name}') # Create SummaryWriter object
         self.early_stopping_patience = params['early_stopping_patience']
+        self.early_stopping_threshold = params['early_stopping_threshold']
         self.early_stopping_counter = 0
         self.best_val_loss = float('inf')
         for metrics in self.metrics:
@@ -203,20 +204,9 @@ class Trainer():
             # Compute metrics
             self.compute_metrics(epoch, val=True)
             
-            # Calcular la pérdida promedio en el conjunto de validación
-            val_loss = self.loss_dict["val"][epoch] / self.n_total_steps_val
-
-            # Verificar si la pérdida actual es mejor que la mejor pérdida registrada
-            if val_loss < self.best_val_loss:
-                self.best_val_loss = val_loss
-                self.early_stopping_counter = 0
-            else:
-                self.early_stopping_counter += 1
-
-            # Detener el entrenamiento si no hay mejora después de cierta cantidad de épocas
-            if self.early_stopping_counter >= self.early_stopping_patience:
-                print(f'Early stopping at epoch {epoch} due to no improvement in validation loss.')
-                return True  # Indica que el entrenamiento debe detenerse
+            # Early stopping
+            if self.early_stopping(epoch):
+                return
 
             print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Val Loss: {self.loss_dict['val'][epoch]:.4f}, Time: {time.time()-time_step:.2f} s")
         self.model.train()
@@ -237,7 +227,23 @@ class Trainer():
             else:
                 self.metrics_dict['train'][str(metric)][epoch] = self.metrics[metric].compute()
 
-    
+    def early_stopping(self, epoch):
+            # Calcular la pérdida promedio en el conjunto de validación
+            val_loss = self.loss_dict["val"][epoch]
+
+            # Verificar si la pérdida actual es mejor que la mejor pérdida registrada
+            if val_loss < self.best_val_loss + self.early_stopping_threshold:
+                self.best_val_loss = val_loss
+                self.early_stopping_counter = 0
+            else:
+                self.early_stopping_counter += 1
+
+            # Detener el entrenamiento si no hay mejora después de cierta cantidad de épocas
+            if self.early_stopping_counter >= self.early_stopping_patience:
+                print(f'Early stopping at epoch {epoch} due to no improvement in validation loss.')
+                return True  # Indica que el entrenamiento debe detenerse
+            else:
+                return False
 
     def train(self):
         self.model.train()
