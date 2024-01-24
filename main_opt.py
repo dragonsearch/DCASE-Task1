@@ -156,7 +156,14 @@ def objective(trial, params):
     }
 
     params_copy.update(trial_model_params)
-    trainer = Trainer(params_copy)
+    if 'summary' in params_copy and params_copy['summary']:
+        torchinfo.summary(model, input_size=(params_copy['batch_size'],1, 64,44))
+    if 'nessi' in params_copy and params_copy['nessi']:
+        nessi.get_model_size(model,'torch', input_size=(params_copy['batch_size'],1, 64,44))
+    if 'mixup_alpha' in params_copy and 'mixup_prob' in params_copy:
+        trainer = TrainerMixUp(params_copy)
+    else:
+        trainer = Trainer(params_copy)
     loss_dict, metrics_dict = trainer.train()
 
     return loss_dict['val'][max(loss_dict['val'].keys())]
