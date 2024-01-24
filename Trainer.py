@@ -50,8 +50,6 @@ class Trainer():
         self.metrics_dict = { stage : {str(metric) : {i:0 for i in range(1,self.num_epochs+1)} }
                              for metric in self.metrics for stage in ["train", "val"]}
         self.params = params.copy()
-        self.params = params.copy()
-        self.save_exec_params()
         self.prepare_dirs()
         self.save_exec_params()
         # Resuming training
@@ -105,7 +103,7 @@ class Trainer():
         self.save_dicts()
 
     def save_exec_params(self):
-        save_obj(self.params, 'models/' + self.name + "/plots/exec_params" + "_" + str(self.name))
+        #save_obj(self.params, 'models/' + self.name + "/plots/exec_params" + "_" + str(self.name))
         dict_to_txt(self.params, 'models/' + self.name + "/plots/exec_params" + "_" + str(self.name) + ".txt")
 
     def reset_metrics(self):
@@ -134,7 +132,6 @@ class Trainer():
         """
         time_epoch = time.time() 
         print(f"Epoch {epoch}/{self.num_epochs}")
-
         for i, (samples, labels, *rest) in enumerate(self.train_loader):
             samples = samples.to(self.device)
             labels = labels.to(self.device)
