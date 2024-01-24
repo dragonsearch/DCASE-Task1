@@ -138,14 +138,6 @@ def objective(trial, params):
     optimizer = get_optimizer(model, params_copy)
     criterion = get_criterion(params_copy)
     metrics = get_metrics(params_copy)
-
-    if 'summary' in params_copy and params_copy['summary']:
-        torchinfo.summary(model, input_size=(params_copy['batch_size'],1, 64,44))
-    if 'nessi' in params_copy and params_copy['nessi']:
-        nessi.get_model_size(model,'torch', input_size=(params_copy['batch_size'],1, 64,44))
-    if 'mixup_alpha' in params_copy and 'mixup_prob' in params_copy:
-        from Trainer import TrainerMixUp as Trainer
-
     trial_model_params = {
         'model': model,
         'criterion': criterion,
