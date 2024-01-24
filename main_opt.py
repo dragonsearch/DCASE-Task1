@@ -5,7 +5,7 @@ import torchaudio
 from torchmetrics.classification import (MulticlassF1Score, MulticlassPrecision, 
                                             MulticlassRecall, MulticlassPrecisionRecallCurve,
                                             MulticlassROC, MulticlassConfusionMatrix, MulticlassAccuracy)
-from Trainer import Trainer
+
 import Evaluator
 import numpy as np
 import nessi
@@ -24,7 +24,7 @@ import optuna
 
 # Absolute paths
 import os
-
+from Trainer import Trainer, TrainerMixUp
 def load_dataloaders(trial, params):
     # Load data using the dataloader
     # The data is on /data/TAU-urban-acoustic-scenes-2022-mobile-development/audio folder 
@@ -68,13 +68,13 @@ def load_dataloaders(trial, params):
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=params['batch_size'], shuffle=True)
 
     # MNIST dataset for testing
-    """
+    
     mnist_dataset = datasets.MNIST(root="mnist", train=True, download=True, transform=ToTensor())
     mnist_test_dataset = datasets.MNIST(root="mnist", train=False, download=True, transform=ToTensor())
 
     train_loader = DataLoader(mnist_dataset, batch_size=64, shuffle=True)
     val_loader = DataLoader(mnist_test_dataset, batch_size=64, shuffle=True)
-    """
+    
     return train_loader, val_loader, test_loader
 
 def get_model(params):
@@ -116,15 +116,17 @@ def objective(trial, params):
         'name': trial.suggest_categorical('exp_name', ["OptTest"]) + str(trial.number),
         'end_epoch': trial.suggest_categorical('end_epoch', [2, 3]),
         "start_epoch": 1,
+        "end_epoch": 100,
         'lr' : trial.suggest_float('lr', 1e-4, 1e-1, log=True),
-        'mixup_alpha': trial.suggest_categorical('mixup_alpha', [0]),
-        'mixup_prob': trial.suggest_categorical('mixup_prob', [0]),
+        #'mixup_alpha': trial.suggest_categorical('mixup_alpha', [0]),
+        #'mixup_prob': trial.suggest_categorical('mixup_prob', [0]),
         'optimizer': "Adam",
         "loss": "CrossEntropyLoss",
         'metrics': {'MulticlassAccuracy': [10,1,'macro']},
         'device': "cuda",
         'model_file': 'model.py',
         "model_class": "BaselineDCASECNN",
+        "early_stopping_patience": 10,
         "label_encoder": LabelEncoder,
         "seed": 42,
     }
