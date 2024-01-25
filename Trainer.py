@@ -203,12 +203,13 @@ class Trainer():
             self.loss_dict["val"][epoch] /= self.n_total_steps_val
             # Compute metrics
             self.compute_metrics(epoch, val=True)
-            
-            # Early stopping
-            if self.early_stopping(epoch):
-                return
 
             print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Val Loss: {self.loss_dict['val'][epoch]:.4f}, Time: {time.time()-time_step:.2f} s")
+
+            # Early stopping
+            if self.early_stopping(epoch):
+                raise Exception("Early stopping")
+            
         self.model.train()
         print( "Validation ended")
         
@@ -232,7 +233,7 @@ class Trainer():
             val_loss = self.loss_dict["val"][epoch]
 
             # Verificar si la pérdida actual es mejor que la mejor pérdida registrada
-            if val_loss < self.best_val_loss + self.early_stopping_threshold:
+            if val_loss + self.early_stopping_threshold < self.best_val_loss :
                 self.best_val_loss = val_loss
                 self.early_stopping_counter = 0
             else:
@@ -251,7 +252,11 @@ class Trainer():
         for ep in range(self.start_epoch,self.start_epoch + self.num_epochs):
             self.train_epoch(ep)
             self.reset_metrics()
-            self.val_epoch(ep)
+            try:
+                self.val_epoch(ep)
+            except Exception as e:
+                print(e)
+                break
             self.reset_metrics()
             self.save_model(ep)
         print(f'Finished Training in {time.time()-time_start:.2f} s')
