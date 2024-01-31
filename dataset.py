@@ -184,7 +184,7 @@ class AudioDataset_with_tensorboard(Dataset):
 
         #Tensorboard writer
 
-        self.writer = SummaryWriter(log_dir='DatasetAudio')
+        self.writer = SummaryWriter(f'runs/DatasetAudio')
         self.audio_samples_added = {}
         
     def __len__(self):
@@ -232,28 +232,26 @@ class AudioDataset_with_tensorboard(Dataset):
    
         return signal
     
-    def _save_audio_to_tensorboard(self, audio, label, filename):
-        print(f'Addinnng audio sample {filename} to TensorBoard')
-        if label not in self.audio_samples_added:
+    def _save_audio_to_tensorboard(self, audio, encoded_label, identifier, filename):
+        if encoded_label not in self.audio_samples_added or self.audio_samples_added[encoded_label] == identifier:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                print(f'Adding audio sample {filename} to TensorBoard')
-                self.writer.add_audio(f'Audio/{label}/{filename}', audio, sample_rate=self.sample_rate_target)
-            self.audio_samples_added[label] = filename
+                self.writer.add_audio(f'{filename}/{encoded_label}/{identifier}', audio, sample_rate=self.sample_rate_target)
+                self.audio_samples_added[encoded_label] = identifier
 
-    def _save_mel_spectrogram_to_tensorboard(self, mel_spectrogram, label, filename):
-        if label in self.audio_samples_added and self.audio_samples_added[label] == filename:
+    def _save_mel_spectrogram_to_tensorboard(self, mel_spectrogram, encoded_label, identifier, filename):
+        if encoded_label in self.audio_samples_added and self.audio_samples_added[encoded_label] == identifier:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
+                plt.figure()
                 plt.imshow(torch.log(mel_spectrogram[0].cpu() + 1e-9).numpy(), cmap='viridis', aspect='auto', origin='lower')
-                plt.title(f'Mel Spectrogram - {label} - {filename}')
+                plt.title(f'Mel Spectrogram {filename} - {encoded_label} - {identifier}')
                 plt.xlabel('Time')
                 plt.ylabel('Mel Filter')
                 plt.colorbar(format='%+2.0f dB')
                 plt.tight_layout()
-            print(f'Adding mel spectrogram {filename} to TensorBoard')
-            self.writer.add_figure(f'Mel_Spectrogram/{label}/{filename}', plt.gcf())
-    
+                self.writer.add_figure(f'Mel_Spectrogram {filename}/{encoded_label}/{identifier}', plt.gcf())
+                plt.close()
     def __getitem__(self, index):
         """
         The `__getitem__` function returns the audio signal and label for a given index in a dataset.
@@ -266,7 +264,7 @@ class AudioDataset_with_tensorboard(Dataset):
         
         audio_sample_path = self._get_audio_sample_path(index)
         filename = self._get_audio_sample_filename(index)
-        label = self._get_audio_sample_label(index)
+        encoded_label = self._get_audio_sample_label(index)
         identifier = self._get_audio_sample_identifier(index)
         signal, sr = torchaudio.load(audio_sample_path)
         signal = signal.to(self.device)
@@ -275,13 +273,18 @@ class AudioDataset_with_tensorboard(Dataset):
         signal = self._mix_down_if_needed(signal)
 
         # Save audio and mel spectrogram to TensorBoard
-        self._save_audio_to_tensorboard(signal, label, filename)
+        self._save_audio_to_tensorboard(signal, encoded_label, identifier, filename)
 
         signal = self.transformations(signal)
 
-        self._save_mel_spectrogram_to_tensorboard(signal, label, filename)
-        return signal, label, filename, identifier
-    
+        self._save_mel_spectrogram_to_tensorboard(signal, encoded_label, identifier, filename)
+
+        self.writer.flush()
+
+        self.writer.close()
+
+        return signal, encoded_label, filename, identifier
+        
     
     def _get_audio_sample_path(self, index):
         """
@@ -609,6 +612,8 @@ class AudioDatasetEval(Dataset):
     
         return self.content.iloc[index, 0].replace('audio/', '')
 
+
+"""
 if __name__ == "__main__":
 
     SAMPLE_RATE = 16000
@@ -627,7 +632,8 @@ if __name__ == "__main__":
     print(f'Number of classes: {len(dataset.label_encoder.classes_)}')
     print(f'Classes: {dataset.label_encoder.classes_}')
     print(f'Sample rate: {dataset.sample_rate_target}')
-    """
+    for i in range (0,3):
+        print(dataset[i])
     dataset_fold = AudioDataset_fold('data/TAU-urban-acoustic-scenes-2022-mobile-development/evaluation_setup/fold1_train.csv', 'data/TAU-urban-acoustic-scenes-2022-mobile-development/audio', mel_spectrogram, 22050, 'cuda', label_encoder=LabelEncoder())
     print(f'Number of samples in the dataset: {len(dataset_fold)}')
     print(f'Number of classes: {len(dataset_fold.label_encoder.classes_)}')
