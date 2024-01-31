@@ -10,7 +10,7 @@ import Evaluator
 import numpy as np
 import nessi
 
-from dataset import AudioDataset, AudioDatasetEval
+from dataset import AudioDataset, AudioDatasetEval, AudioDataset_with_tensorboard
 from sklearn.preprocessing import LabelEncoder, LabelBinarizer
 
 #REMOVE LATER TESTING PURPOSES
@@ -42,7 +42,7 @@ def load_dataloaders(trial, params):
             n_mels=64
         )
 
-    audiodataset = AudioDataset(
+    audiodataset = AudioDataset_with_tensorboard(
         data_training_path + 'meta.csv', 
         data_training_path + 'audio', 
         mel_spectrogram, 22050,
