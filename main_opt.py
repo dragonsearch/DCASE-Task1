@@ -167,7 +167,8 @@ def objective(trial, params):
     else:
         trainer = Trainer(params_copy)
     loss_dict, metrics_dict = trainer.train()
-
+    #discard -1 values
+    loss_dict['val'] = {k: v for k, v in loss_dict['val'].items() if v != -1}
     return loss_dict['val'][max(loss_dict['val'].keys())]
 
 
