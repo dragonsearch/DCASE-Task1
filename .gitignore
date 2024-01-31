@@ -4,3 +4,5 @@ models/
 launch.sh
 params.json
 runs/
+mnist/
+launch.sh
