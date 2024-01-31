@@ -36,16 +36,16 @@ def load_dataloaders(trial, params):
     data_training_path = params['abspath'] + '/data/TAU-urban-acoustic-scenes-2022-mobile-development/'
     data_evaluation_path = params['abspath'] + '/data/TAU-urban-acoustic-scenes-2023-mobile-evaluation/'
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
-            sample_rate = 22050,
-            n_fft=2048,
-            hop_length=512,
-            n_mels=64
+            sample_rate = params['sample_rate'],
+            n_fft=params['n_fft'],
+            hop_length=params['hop_length'],
+            n_mels=params['n_mels'],
         )
 
     audiodataset = AudioDataset(
         data_training_path + 'meta.csv', 
         data_training_path + 'audio', 
-        mel_spectrogram, 22050,
+        mel_spectrogram, params['sample_rate'],
         'cuda',
         label_encoder=LabelEncoder()
         )
@@ -53,12 +53,12 @@ def load_dataloaders(trial, params):
     audio_evaluation_dataset = AudioDatasetEval(
         data_evaluation_path + 'evaluation_setup/fold1_test.csv', 
         data_evaluation_path + 'audio', 
-        mel_spectrogram, 22050,
+        mel_spectrogram, params['sample_rate'],
         'cuda'
         )
 
     # Val Train split
-    train = int(0.8 * len(audiodataset))
+    train = int(params['train_split'] * len(audiodataset))
     val = len(audiodataset) - train
     train_data, val_data = torch.utils.data.random_split(audiodataset, [train, val])
 
@@ -68,13 +68,13 @@ def load_dataloaders(trial, params):
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=params['batch_size'], shuffle=True)
 
     # MNIST dataset for testing
-    
+    """
     mnist_dataset = datasets.MNIST(root="mnist", train=True, download=True, transform=ToTensor())
     mnist_test_dataset = datasets.MNIST(root="mnist", train=False, download=True, transform=ToTensor())
 
     train_loader = DataLoader(mnist_dataset, batch_size=64, shuffle=True)
     val_loader = DataLoader(mnist_test_dataset, batch_size=64, shuffle=True)
-    
+    """
     return train_loader, val_loader, test_loader
 
 def get_model(params):
@@ -90,7 +90,7 @@ def get_model(params):
     model_class = params["model_class"]
     # Create the model
     device = params["device"]
-    model = getattr(imp, model_class)().to(device)
+    model = getattr(imp, model_class)(params).to(device)
     return model
 
 def get_optimizer(model, params):
@@ -129,6 +129,14 @@ def objective(trial, params):
         "early_stopping_patience": 10,
         "label_encoder": LabelEncoder,
         "seed": 42,
+        "train_split": 0.8,
+        # Mel spectrogram parameters
+        "sample_rate": 22050,
+        "n_fft": 2048,
+        "hop_length": 512,
+        "n_mels": 64,
+        # Model parameters
+        "dropout": 0.5
     }
     params_copy.update(trial_model_params)
     torch.device(params_copy['device'])

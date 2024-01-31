@@ -91,7 +91,7 @@ class Model(nn.Module):
         return x
 
 class BaselineDCASECNN(nn.Module):
-    def __init__(self):
+    def __init__(self, params):
         super().__init__()
         self.conv2d_1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, padding=1)
         self.batch_norm_1 = nn.BatchNorm2d(16)
@@ -102,14 +102,14 @@ class BaselineDCASECNN(nn.Module):
         self.activation_2 = nn.ReLU()
         
         self.max_pooling_1 = nn.MaxPool2d(kernel_size=5, stride=5)
-        self.dropout_1 = nn.Dropout(0.5)
+        self.dropout_1 = nn.Dropout(params['dropout'])
         
         self.conv2d_3 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3)
         self.batch_norm_3 = nn.BatchNorm2d(32)
         self.activation_3 = nn.ReLU()
         
         self.max_pooling_2 = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.dropout_2 = nn.Dropout(0.5)
+        self.dropout_2 = nn.Dropout(params['dropout'])
         
         self.flatten = nn.Flatten()
         self.dense_1 = nn.Linear(480, 100)
