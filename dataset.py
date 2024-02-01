@@ -185,6 +185,9 @@ class AudioDataset_with_tensorboard(Dataset):
         #Tensorboard writer
 
         self.writer = SummaryWriter(f'runs/DatasetAudio')
+
+        self._save_class_samples_tensorboard()
+
     def _save_class_samples_tensorboard(self):
         filenames = self.content.groupby('scene_label').head(10)
         filenames = filenames.iloc[:, 0]
@@ -255,26 +258,27 @@ class AudioDataset_with_tensorboard(Dataset):
    
         return signal
     
-    def _save_audio_to_tensorboard(self, audio, encoded_label, identifier, filename):
-        if encoded_label not in self.audio_samples_added or self.audio_samples_added[encoded_label] == identifier:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                self.writer.add_audio(f'{filename}/{encoded_label}/{identifier}', audio, sample_rate=self.sample_rate_target)
-                self.audio_samples_added[encoded_label] = identifier
+    def get_index_from_filename(self, filename):
+        return self.content.index[self.content['filename'] == filename].tolist()[0]
 
-    def _save_mel_spectrogram_to_tensorboard(self, mel_spectrogram, encoded_label, identifier, filename):
-        if encoded_label in self.audio_samples_added and self.audio_samples_added[encoded_label] == identifier:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                plt.figure()
-                plt.imshow(torch.log(mel_spectrogram[0].cpu() + 1e-9).numpy(), cmap='viridis', aspect='auto', origin='lower')
-                plt.title(f'Mel Spectrogram {filename} - {encoded_label} - {identifier}')
-                plt.xlabel('Time')
-                plt.ylabel('Mel Filter')
-                plt.colorbar(format='%+2.0f dB')
-                plt.tight_layout()
-                self.writer.add_figure(f'Mel_Spectrogram {filename}/{encoded_label}/{identifier}', plt.gcf())
-                plt.close()
+    def _save_audio_to_tensorboard(self, audio, encoded_label, filename, identifier):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.writer.add_audio(f'{encoded_label}/{identifier}/{filename}', audio, sample_rate=self.sample_rate_target)
+
+    def _save_mel_spectrogram_to_tensorboard(self, mel_spectrogram, encoded_label, filename, identifier):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.figure()
+            plt.imshow(torch.log(mel_spectrogram[0].cpu() + 1e-9).numpy(), cmap='viridis', aspect='auto', origin='lower')
+            plt.title(f'Mel_Spectrogram {encoded_label}/{identifier}/{filename}')
+            plt.xlabel('Time')
+            plt.ylabel('Mel Filter')
+            plt.colorbar(format='%+2.0f dB')
+            plt.tight_layout()
+            self.writer.add_figure(f'Mel Spectrogram {encoded_label}/{filename}',  plt.gcf())
+            plt.close()
+            
     def __getitem__(self, index):
         """
         The `__getitem__` function returns the audio signal and label for a given index in a dataset.
@@ -295,16 +299,10 @@ class AudioDataset_with_tensorboard(Dataset):
         signal = self._resample_if_needed(signal, sr)
         signal = self._mix_down_if_needed(signal)
 
-        # Save audio and mel spectrogram to TensorBoard
-        self._save_audio_to_tensorboard(signal, encoded_label, identifier, filename)
 
         signal = self.transformations(signal)
 
-        self._save_mel_spectrogram_to_tensorboard(signal, encoded_label, identifier, filename)
 
-        self.writer.flush()
-
-        self.writer.close()
 
         return signal, encoded_label, filename, identifier
         
