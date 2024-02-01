@@ -185,8 +185,31 @@ class AudioDataset_with_tensorboard(Dataset):
         #Tensorboard writer
 
         self.writer = SummaryWriter(f'runs/DatasetAudio')
-        self.audio_samples_added = {}
+    def _save_class_samples_tensorboard(self):
+        filenames = self.content.groupby('scene_label').head(10)
+        filenames = filenames.iloc[:, 0]
         
+        for filename in filenames:
+            print(filename)
+            # Remove /audio [-5]
+            index = self.get_index_from_filename(filename)
+            audio_sample_path = self._get_audio_sample_path(index)
+            filename = self._get_audio_sample_filename(index)
+            encoded_label = self._get_audio_sample_label(index)
+            identifier = self._get_audio_sample_identifier(index)
+            signal, sr = torchaudio.load(audio_sample_path)
+            signal = signal.to(self.device)
+            #resample and mixdown if necessary (assuming dissonance in the dataset)
+            signal = self._resample_if_needed(signal, sr)
+            signal = self._mix_down_if_needed(signal)
+
+            self._save_audio_to_tensorboard(signal, encoded_label, filename, identifier)
+            signal = self.transformations(signal)
+            self._save_mel_spectrogram_to_tensorboard(signal, encoded_label, filename, identifier)
+
+            self.writer.flush()
+
+            self.writer.close()
     def __len__(self):
         """
         The above function returns the length of the content attribute of an object.
