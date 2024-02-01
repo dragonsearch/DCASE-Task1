@@ -68,13 +68,13 @@ def load_dataloaders(trial, params):
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=params['batch_size'], shuffle=True)
 
     # MNIST dataset for testing
-    
+    """
     mnist_dataset = datasets.MNIST(root="mnist", train=True, download=True, transform=ToTensor())
     mnist_test_dataset = datasets.MNIST(root="mnist", train=False, download=True, transform=ToTensor())
 
     train_loader = DataLoader(mnist_dataset, batch_size=64, shuffle=True)
     val_loader = DataLoader(mnist_test_dataset, batch_size=64, shuffle=True)
-    
+    """
     return train_loader, val_loader, test_loader
 
 def get_model(params):
