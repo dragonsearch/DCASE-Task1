@@ -191,10 +191,8 @@ class AudioDataset_with_tensorboard(Dataset):
     def _save_class_samples_tensorboard(self):
         filenames = self.content.groupby('scene_label').head(10)
         filenames = filenames.iloc[:, 0]
-        
+        print("Saving class samples to tensorboard")
         for filename in filenames:
-            print(filename)
-            # Remove /audio [-5]
             index = self.get_index_from_filename(filename)
             audio_sample_path = self._get_audio_sample_path(index)
             filename = self._get_audio_sample_filename(index)
