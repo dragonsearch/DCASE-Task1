@@ -142,7 +142,7 @@ class Trainer():
             self.add_to_metric(y_pred, labels)
 
             #Add scalars to a Tensorboard
-            step = epoch * len(self.train_loader) + i
+            step = (epoch - 1) * len(self.train_loader) + i
             self.writer.add_scalar('Loss/train', loss.item(), step)
             for metric_name, metric in self.metrics.items():
                 self.writer.add_scalar(f'{metric_name}/Train', metric.compute(), step) 
@@ -191,7 +191,7 @@ class Trainer():
                 self.loss_dict["val"][epoch] += loss.item()
                 self.add_to_metric(y_pred, labels)
                 #Add scalars to Tensorboard
-                step = epoch * len(self.val_loader) + i
+                step = (epoch - 1) * len(self.val_loader) + i
                 self.writer.add_scalar('Loss/Val', loss.item(), step)
                 for metric_name, metric in self.metrics.items():
                     self.writer.add_scalar(f'{metric_name}/Val', metric.compute(), step)
