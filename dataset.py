@@ -143,6 +143,25 @@ class AudioDataset_fold(Dataset):
     
         return self.content.iloc[index, 0].replace('audio/', '')
 
+class AudioDataset_fold_cached(AudioDataset_fold):
+    def __init__(self, content_file, audio_dir, transformations , sample_rate_target, device, label_encoder):
+        """
+        The function initializes an object with a content file and an audio directory.
+        
+        :param content_file: The content_file parameter is the file path to a CSV file that contains the
+        content data. The data in the CSV file is separated by tabs ('\t')
+        :param audio_dir: The audio directory where the audio files are stored
+        :param transformations: The transformations parameter is a transformation object that is used to
+        transform the audio samples
+        :param sample_rate_target: The sample_rate_target parameter is the target sample rate of the
+        audio samples
+        :param device: The device parameter is the device where the audio samples will be stored. It can
+        be either 'cpu' or 'cuda'
+        """
+       
+        super().__init__(content_file, audio_dir, transformations , sample_rate_target, device, label_encoder)
+        self._cache_transforms()
+        #self._test_cached_transforms()
 
     def _transform_data(self, index):
         audio_sample_path = self._get_audio_sample_path(index)
