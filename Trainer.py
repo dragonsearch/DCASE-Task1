@@ -45,6 +45,7 @@ class Trainer():
         for metrics in self.metrics:
             self.metrics[metrics].to(self.device)
         
+        
         self.n_total_steps_train = len(self.train_loader)
         self.n_total_steps_val = len(self.val_loader)
         self.loss_dict = {stage : {i:-1 for i in range(1,self.num_epochs+1)} for stage in ["train", "val"]}
@@ -57,6 +58,12 @@ class Trainer():
         if self.start_epoch > 1:
             self.load_dicts()
             self.load_model(self.start_epoch-1)
+        for params, value in self.params.items():
+            self.writer.add_text(params, str(value))
+        for metrics, value in self.metrics.items():
+            self.writer.add_text(metrics, str(value))
+
+    
         
     
     """
@@ -132,6 +139,9 @@ class Trainer():
         Trains the model for each epoch
         """
         time_epoch = time.time() 
+
+        
+        
         print(f"Epoch {epoch}/{self.num_epochs}")
         for i, (samples, labels, *rest) in enumerate(self.train_loader):
             samples = samples.to(self.device)
@@ -141,14 +151,18 @@ class Trainer():
             self.loss_dict["train"][epoch] += loss.item()
             self.add_to_metric(y_pred, labels)
 
-            #Add scalars to a Tensorboard
+            #Add scalars to a Tensorboard 
             step = (epoch - 1) * len(self.train_loader) + i
             self.writer.add_scalar('Loss/train', loss.item(), step)
             for metric_name, metric in self.metrics.items():
-                self.writer.add_scalar(f'{metric_name}/Train', metric.compute(), step) 
+                self.writer.add_scalar(f'{metric_name}/train', metric.compute(), step)
+                
+            
+             
             if (i+1) % 100 == 0:
                 print (f'Step [{i+1}/{self.n_total_steps_train}], Loss: {loss.item():.4f}, Time: {time.time()-time_epoch:.2f} s')
-
+        
+        
         # Compute metrics
         self.compute_metrics(epoch, val=False)
 
@@ -157,7 +171,10 @@ class Trainer():
 
         print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Loss: {self.loss_dict['train'][epoch]:.4f}, Time: {time.time()-time_epoch:.2f} s")
 
-
+        #Add scalars to a Tensorboard for each epoch
+        self.writer.add_scalar('Loss/train (Epoch)', loss.item(), step)
+        for metric_name, metric in self.metrics.items():
+            self.writer.add_scalar(f'{metric_name}/train (Epoch)', metric.compute(), step)
 
     def train_step(self, samples, labels):  
         """
@@ -180,6 +197,9 @@ class Trainer():
     def val_epoch(self, epoch):
         print( "Validation started")
         self.model.eval()
+        
+        
+        
         with torch.no_grad():
             time_step = time.time()
             print(f"Validation batch")
@@ -205,6 +225,11 @@ class Trainer():
             self.compute_metrics(epoch, val=True)
 
             print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Val Loss: {self.loss_dict['val'][epoch]:.4f}, Time: {time.time()-time_step:.2f} s")
+
+            #Plots for every epoch
+            self.writer.add_scalar('Loss/Val (Epoch)', loss.item(), step)
+            for metric_name, metric in self.metrics.items():
+                self.writer.add_scalar(f'{metric_name}/Val (Epoch)', metric.compute(), step)
 
             # Early stopping
             if self.early_stopping(epoch):
