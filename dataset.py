@@ -174,6 +174,29 @@ class AudioDataset_fold_cached(AudioDataset_fold):
         signal = self.transformations(signal)
         return signal, sr, filename
 
+    def _test_cached_transforms(self):
+        """
+        The function `_test_cached_transforms` is used to test the cached transformations to make sure
+        that they were saved correctly.
+        
+        :param signal: The `signal` parameter is the audio signal that needs to be transformed
+        :param sr: The `sr` parameter is the sample rate of the audio signal
+        :return: None
+        """
+        for i in range(0, len(self.content)):
+            audio_sample_path = self._get_audio_sample_path(i)
+            filename = self._get_audio_sample_filename(i)
+            signal, sr = torchaudio.load(audio_sample_path)
+            signal = signal.to(self.device)
+            #resample and mixdown if necessary (assuming dissonance in the dataset)
+            signal = self._resample_if_needed(signal, sr)
+            signal = self._mix_down_if_needed(signal)
+            signal = self.transformations(signal)
+            cached_signal = torch.load(f'data/cache/{filename}.pt')
+            assert torch.equal(signal, cached_signal)
+        
+        print("All cached signals are equal to the transformed signals")
+
     def _cache_transforms(self):
         """
         The function `_cache_transforms` is used to cache the transformations
