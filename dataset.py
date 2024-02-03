@@ -143,6 +143,20 @@ class AudioDataset_fold(Dataset):
     
         return self.content.iloc[index, 0].replace('audio/', '')
 
+    def _cache_transforms(self):
+        """
+        The function `_cache_transforms` is used to cache the transformations
+        to disk so that they can be reused later.
+        
+        :param signal: The `signal` parameter is the audio signal that needs to be transformed
+        :param sr: The `sr` parameter is the sample rate of the audio signal
+        :return: None
+        """
+        for i in range(0, len(self.content)):
+            signal, sr, filename = self._transform_data(i)
+            torch.save(signal, f'data/cache/{filename}.pt')
+        print("Transformations are cached to disk")
+    
 
 
 class AudioDataset_withMeta(AudioDataset_fold):
