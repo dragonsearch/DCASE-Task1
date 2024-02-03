@@ -143,6 +143,18 @@ class AudioDataset_fold(Dataset):
     
         return self.content.iloc[index, 0].replace('audio/', '')
 
+
+    def _transform_data(self, index):
+        audio_sample_path = self._get_audio_sample_path(index)
+        filename = self._get_audio_sample_filename(index)
+        signal, sr = torchaudio.load(audio_sample_path)
+        signal = signal.to(self.device)
+        #resample and mixdown if necessary (assuming dissonance in the dataset)
+        signal = self._resample_if_needed(signal, sr)
+        signal = self._mix_down_if_needed(signal)
+        signal = self.transformations(signal)
+        return signal, sr, filename
+
     def _cache_transforms(self):
         """
         The function `_cache_transforms` is used to cache the transformations
