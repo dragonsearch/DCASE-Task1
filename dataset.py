@@ -188,6 +188,21 @@ class AudioDataset_fold_cached(AudioDataset_fold):
             torch.save(signal, f'data/cache/{filename}.pt')
         print("Transformations are cached to disk")
     
+    def __getitem__(self, index):
+        """
+        The `__getitem__` function returns the audio signal and label for a given index in a dataset.
+        
+        :param index: The `index` parameter represents the index of the audio sample that you want to
+        retrieve from your dataset
+        :return: The `__getitem__` method is returning a tuple containing the audio signal and the label
+        of the audio sample at the specified index.
+        """
+        filename = self._get_audio_sample_filename(index)
+        label = self._get_audio_sample_label(index)
+        signal = torch.load(f'data/cache/{filename}.pt')
+        
+        return signal, label, filename
+     
 
 
 class AudioDataset_withMeta(AudioDataset_fold):
