@@ -10,7 +10,7 @@ import Evaluator
 import numpy as np
 import nessi
 
-from dataset import AudioDataset_fold, AudioDatasetEval, AudioDataset_with_tensorboard
+from dataset import AudioDataset_fold, AudioDatasetEval, AudioDataset_with_tensorboard, AudioDataset_fold_cached
 from sklearn.preprocessing import LabelEncoder, LabelBinarizer
 
 #REMOVE LATER TESTING PURPOSES
@@ -50,7 +50,7 @@ def load_dataloaders(trial, params):
         label_encoder=LabelEncoder()
         )
     """
-    audiodataset = AudioDataset_fold(
+    audiodataset = AudioDataset_fold_cached(
         data_training_path + 'evaluation_setup/fold1_train.csv',
         data_training_path + 'audio',
         mel_spectrogram, 22050,
