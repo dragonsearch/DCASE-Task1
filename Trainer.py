@@ -11,6 +11,10 @@ import pickle
 from torchmetrics.classification import (MulticlassF1Score, MulticlassPrecision, 
                                             MulticlassRecall, MulticlassPrecisionRecallCurve,
                                             MulticlassROC, MulticlassConfusionMatrix, MulticlassAccuracy)
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from io import BytesIO
+from PIL import Image
+import torchvision.transforms.functional as F
 from torch.utils.tensorboard import SummaryWriter  # Import SummaryWriter from torch.utils.tensorboard
 import time
 from utils import save_obj, save_ckpt, load_ckpt, load_obj, dict_to_txt
@@ -58,11 +62,18 @@ class Trainer():
         if self.start_epoch > 1:
             self.load_dicts()
             self.load_model(self.start_epoch-1)
+        
+        #Save the parameters and metrics to tensorboard
+        text = ["batch_size", "criterion", "device", "dropout", "early_stopping_patience","early_stopping_threshold","end_epoch", "hop_length","loss","lr",
+                "model_class","n_fft","n_mels","optimizer","sample_rate","seed","start_epoch","train_split","test_aplit","name","metrics","nessi","summary"]
         for params, value in self.params.items():
-            self.writer.add_text(params, str(value))
+            if params in text:
+                self.writer.add_text(params, str(value))
         for metrics, value in self.metrics.items():
             self.writer.add_text(metrics, str(value))
 
+        #Save model graph to tensorboard with a example input from the dataloader
+        self.writer.add_graph(self.model, next(iter(self.train_loader))[0].to(self.device))
     
         
     
@@ -226,6 +237,29 @@ class Trainer():
 
             print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Val Loss: {self.loss_dict['val'][epoch]:.4f}, Time: {time.time()-time_step:.2f} s")
 
+            #Confusion matrix
+            class_labels = ['airport', 'bus', 'metro', 'metro_station', 'park', 'public_square', 'shopping_mall', 'street_pedestrian', 'street_traffic', 'tram']
+            y_true_np = labels.cpu().numpy()
+            y_pred_np = torch.argmax(y_pred, dim=1).cpu().numpy()
+
+            cm = confusion_matrix(y_true_np, y_pred_np)
+            cm_norm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+
+            #Display a big confusion matrix
+            fig, ax = plt.subplots(figsize=(18,18))
+            #disp = ConfusionMatrixDisplay(confusion_matrix=cm_norm, display_labels=class_labels)
+            #disp.plot(ax=ax)
+            #confusion_image_bytes = self.plot_to_image(fig)
+
+            confusion_display = ConfusionMatrixDisplay(cm_norm, display_labels=class_labels)
+            confusion_image = confusion_display.plot(cmap=plt.cm.Blues, ax=ax, values_format=".2f").figure_
+            confusion_image_bytes = self.plot_to_image(confusion_image)
+            
+
+            #Add to tensorboard
+            self.writer.add_image(f"Confusion Matrix/Epoch{epoch}", confusion_image_bytes, epoch)
+
+
             #Plots for every epoch
             self.writer.add_scalar('Loss/Val (Epoch)', loss.item(), step)
             for metric_name, metric in self.metrics.items():
@@ -271,6 +305,16 @@ class Trainer():
             else:
                 return False
 
+    def plot_to_image(self, figure):
+        buf = BytesIO()
+        figure.savefig(buf, format='png')
+        buf.seek(0)
+        image = Image.open(buf)
+
+        tensor_image = F.to_tensor(image)
+        tensor_image = tensor_image / tensor_image.max()
+
+        return tensor_image
     def train(self):
         self.model.train()
         time_start = time.time()
