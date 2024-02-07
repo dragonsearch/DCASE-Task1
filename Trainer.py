@@ -52,6 +52,7 @@ class Trainer():
         
         self.n_total_steps_train = len(self.train_loader)
         self.n_total_steps_val = len(self.val_loader)
+        self.loss_dict = {stage : {i:-100 for i in range(1,self.num_epochs+1)} for stage in ["train", "val"]}
         self.metrics_dict = {stage : None for stage in ["train", "val"]}
         for stage in ["train", "val"]:
             self.metrics_dict[stage] = {str(metric) : {i:-100 for i in range(1,self.num_epochs+1)} for metric in self.metrics} 
@@ -154,6 +155,7 @@ class Trainer():
         
         
         print(f"Epoch {epoch}/{self.num_epochs}")
+        self.loss_dict["train"][epoch] = 0
         for i, (samples, labels, *rest) in enumerate(self.train_loader):
             samples = samples.to(self.device)
             labels = labels.to(self.device)
@@ -214,6 +216,7 @@ class Trainer():
         with torch.no_grad():
             time_step = time.time()
             print(f"Validation batch")
+            self.loss_dict["val"][epoch] = 0
             for i, (samples, labels,*rest) in enumerate(self.val_loader):
                 samples = samples.to(self.device)
                 labels = labels.to(self.device)
