@@ -50,14 +50,23 @@ def load_dataloaders(trial, params):
         label_encoder=LabelEncoder()
         )
     """
-    audiodataset = AudioDataset_fold_cached(
+    audiodataset_train = AudioDataset_fold_cached(
         data_training_path + 'evaluation_setup/fold1_train.csv',
         data_training_path + 'audio',
         mel_spectrogram, 22050,
         'cuda',
-        label_encoder=LabelEncoder()
+        label_encoder=LabelEncoder(),
+        cache_transforms=False
         )
-    
+    audiodataset_val = AudioDataset_fold_cached(
+        data_training_path + 'evaluation_setup/fold1_evaluate.csv',
+        data_training_path + 'audio',
+        mel_spectrogram, 22050,
+        'cuda',
+        label_encoder=LabelEncoder(),
+        cache_transforms=False
+        )
+    # Not using the evaluation set for now
     audio_evaluation_dataset = AudioDatasetEval(
         data_evaluation_path + 'evaluation_setup/fold1_test.csv', 
         data_evaluation_path + 'audio', 
@@ -66,14 +75,14 @@ def load_dataloaders(trial, params):
         )
 
     # Val Train split
-    train = int(params['train_split'] * len(audiodataset))
-    val = len(audiodataset) - train
-    train_data, val_data = torch.utils.data.random_split(audiodataset, [train, val])
+    #train = int(params['train_split'] * len(audiodataset))
+    #val = len(audiodataset) - train
+    #train_data, val_data = torch.utils.data.random_split(audiodataset, [train, val])
 
     test_loader = torch.utils.data.DataLoader(audio_evaluation_dataset, batch_size=params['batch_size'], shuffle=True)
 
-    train_loader = torch.utils.data.DataLoader(train_data, batch_size=params['batch_size'], shuffle=True)
-    val_loader = torch.utils.data.DataLoader(val_data, batch_size=params['batch_size'], shuffle=True)
+    train_loader = torch.utils.data.DataLoader(audiodataset_train, batch_size=params['batch_size'], shuffle=True)
+    val_loader = torch.utils.data.DataLoader(audiodataset_val, batch_size=params['batch_size'], shuffle=True)
 
     # MNIST dataset for testing
     """
