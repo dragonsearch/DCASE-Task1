@@ -52,9 +52,9 @@ class Trainer():
         
         self.n_total_steps_train = len(self.train_loader)
         self.n_total_steps_val = len(self.val_loader)
-        self.loss_dict = {stage : {i:-1 for i in range(1,self.num_epochs+1)} for stage in ["train", "val"]}
-        self.metrics_dict = { stage : {str(metric) : {i:-1 for i in range(1,self.num_epochs+1)} }
-                             for metric in self.metrics for stage in ["train", "val"]}
+        self.metrics_dict = {stage : None for stage in ["train", "val"]}
+        for stage in ["train", "val"]:
+            self.metrics_dict[stage] = {str(metric) : {i:-100 for i in range(1,self.num_epochs+1)} for metric in self.metrics} 
         self.params = params.copy()
         self.prepare_dirs()
         self.save_exec_params()
