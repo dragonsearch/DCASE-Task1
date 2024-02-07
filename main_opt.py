@@ -140,7 +140,7 @@ def objective(trial, params):
         #'mixup_prob': trial.suggest_categorical('mixup_prob', [0]),
         'optimizer': "Adam",
         "loss": "CrossEntropyLoss",
-        'metrics': {'MulticlassAccuracy': [10,1,'macro']},
+        'metrics': {'MulticlassAccuracy': [10,1,'macro'], 'MulticlassConfusionMatrix': [10]},
         'device': "cuda",
         'model_file': 'model.py',
         "model_class": "BaselineDCASECNN",
