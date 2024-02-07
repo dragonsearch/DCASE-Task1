@@ -270,7 +270,7 @@ class Trainer():
 
             # Early stopping
             if self.early_stopping(epoch):
-                raise Exception("Early stopping")
+                raise EarlyStoppingException()
             
         self.model.train()
         print( "Validation ended")
