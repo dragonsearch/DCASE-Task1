@@ -162,6 +162,8 @@ class AudioDataset_fold_cached(AudioDataset_fold):
         """
        
         super().__init__(content_file, audio_dir, transformations , sample_rate_target, device, label_encoder)
+        if not os.path.exists('data/cache'):
+            os.makedirs('data/cache')
         if cache_transforms:
             self._cache_transforms()
         #self._test_cached_transforms()
