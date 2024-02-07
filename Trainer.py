@@ -49,7 +49,7 @@ class Trainer():
         for metrics in self.metrics:
             self.metrics[metrics].to(self.device)
         
-        
+        self.label_encoder = params['label_encoder']   
         self.n_total_steps_train = len(self.train_loader)
         self.n_total_steps_val = len(self.val_loader)
         self.loss_dict = {stage : {i:-100 for i in range(1,self.num_epochs+1)} for stage in ["train", "val"]}
