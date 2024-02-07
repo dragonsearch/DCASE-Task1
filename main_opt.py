@@ -50,12 +50,13 @@ def load_dataloaders(trial, params):
         label_encoder=LabelEncoder()
         )
     """
+    label_encoder = LabelEncoder()
     audiodataset_train = AudioDataset_fold_cached(
         data_training_path + 'evaluation_setup/fold1_train.csv',
         data_training_path + 'audio',
         mel_spectrogram, 22050,
         'cuda',
-        label_encoder=LabelEncoder(),
+        label_encoder= label_encoder,
         cache_transforms=False
         )
     audiodataset_val = AudioDataset_fold_cached(
@@ -63,7 +64,7 @@ def load_dataloaders(trial, params):
         data_training_path + 'audio',
         mel_spectrogram, 22050,
         'cuda',
-        label_encoder=LabelEncoder(),
+        label_encoder=label_encoder,
         cache_transforms=False
         )
     # Not using the evaluation set for now
@@ -139,13 +140,12 @@ def objective(trial, params):
         #'mixup_prob': trial.suggest_categorical('mixup_prob', [0]),
         'optimizer': "Adam",
         "loss": "CrossEntropyLoss",
-        'metrics': {'MulticlassAccuracy': [10,1,'macro']},
+        'metrics': {'MulticlassAccuracy': [10,1,'macro'], 'MulticlassConfusionMatrix': [10]},
         'device': "cuda",
         'model_file': 'model.py',
         "model_class": "BaselineDCASECNN",
         "early_stopping_patience": 10,
         "early_stopping_threshold": 0.01,
-        "label_encoder": LabelEncoder,
         "seed": 42,
         "train_split": 0.8,
         # Mel spectrogram parameters
@@ -160,8 +160,7 @@ def objective(trial, params):
     torch.device(params_copy['device'])
     torch.manual_seed(params_copy['seed'])
     np.random.seed(params_copy['seed'])
-
-    train_loader, val_loader, _ = load_dataloaders(trial, params_copy)
+    train_loader, val_loader, _, label_encoder = load_dataloaders(trial, params_copy)
     model = get_model(params_copy)
     optimizer = get_optimizer(model, params_copy)
     criterion = get_criterion(params_copy)
@@ -173,6 +172,7 @@ def objective(trial, params):
         'metrics': metrics,
         'train_loader': train_loader,
         'val_loader': val_loader,
+        'label_encoder': label_encoder,
     }
 
     params_copy.update(trial_model_params)

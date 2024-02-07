@@ -49,7 +49,7 @@ class Trainer():
         for metrics in self.metrics:
             self.metrics[metrics].to(self.device)
         
-        
+        self.label_encoder = params['label_encoder']   
         self.n_total_steps_train = len(self.train_loader)
         self.n_total_steps_val = len(self.val_loader)
         self.loss_dict = {stage : {i:-100 for i in range(1,self.num_epochs+1)} for stage in ["train", "val"]}
@@ -168,7 +168,8 @@ class Trainer():
             step = (epoch - 1) * len(self.train_loader) + i
             self.writer.add_scalar('Loss/train', loss.item(), step)
             for metric_name, metric in self.metrics.items():
-                self.writer.add_scalar(f'{metric_name}/train', metric.compute(), step)
+                if metric_name != "MulticlassConfusionMatrix":
+                    self.writer.add_scalar(f'{metric_name}/train', metric.compute(), step)
                 
             
              
@@ -187,7 +188,8 @@ class Trainer():
         #Add scalars to a Tensorboard for each epoch
         self.writer.add_scalar('Loss/train (Epoch)', loss.item(), step)
         for metric_name, metric in self.metrics.items():
-            self.writer.add_scalar(f'{metric_name}/train (Epoch)', metric.compute(), step)
+            if metric_name != "MulticlassConfusionMatrix":
+                self.writer.add_scalar(f'{metric_name}/train (Epoch)', metric.compute(), step)
 
     def train_step(self, samples, labels):  
         """
@@ -228,7 +230,8 @@ class Trainer():
                 step = (epoch - 1) * len(self.val_loader) + i
                 self.writer.add_scalar('Loss/Val', loss.item(), step)
                 for metric_name, metric in self.metrics.items():
-                    self.writer.add_scalar(f'{metric_name}/Val', metric.compute(), step)
+                    if metric_name != "MulticlassConfusionMatrix":
+                        self.writer.add_scalar(f'{metric_name}/Val', metric.compute(), step)
                 if (i+1) % 100 == 0:
                     print (f'Step [{i+1}/{self.n_total_steps_val}], Loss: {loss.item():.4f}, Time: {time.time()-time_step:.2f} s')
 
@@ -238,23 +241,17 @@ class Trainer():
             # Compute metrics
             self.compute_metrics(epoch, val=True)
 
-            print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Val Loss: {self.loss_dict['val'][epoch]:.4f}, Time: {time.time()-time_step:.2f} s")
+            print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Val Loss: {self.loss_dict['val'][epoch]:.4f}, Time: {time.time()-time_step:.2f} s")  
 
-            #Confusion matrix
-            class_labels = ['airport', 'bus', 'metro', 'metro_station', 'park', 'public_square', 'shopping_mall', 'street_pedestrian', 'street_traffic', 'tram']
-            y_true_np = labels.cpu().numpy()
-            y_pred_np = torch.argmax(y_pred, dim=1).cpu().numpy()
 
-            cm = confusion_matrix(y_true_np, y_pred_np)
-            cm_norm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+            # 0-9- > classes
 
             #Display a big confusion matrix
             fig, ax = plt.subplots(figsize=(18,18))
-            #disp = ConfusionMatrixDisplay(confusion_matrix=cm_norm, display_labels=class_labels)
-            #disp.plot(ax=ax)
-            #confusion_image_bytes = self.plot_to_image(fig)
-
-            confusion_display = ConfusionMatrixDisplay(cm_norm, display_labels=class_labels)
+            conf_matrix = self.metrics_dict['val']['MulticlassConfusionMatrix'][epoch].cpu().numpy()
+            # Confusion matrix inverse transform labels
+            class_labels = self.label_encoder.inverse_transform(np.arange(conf_matrix.shape[0]))
+            confusion_display = ConfusionMatrixDisplay(conf_matrix, display_labels=class_labels)
             confusion_image = confusion_display.plot(cmap=plt.cm.Blues, ax=ax, values_format=".2f").figure_
             confusion_image_bytes = self.plot_to_image(confusion_image)
             
@@ -266,11 +263,12 @@ class Trainer():
             #Plots for every epoch
             self.writer.add_scalar('Loss/Val (Epoch)', loss.item(), step)
             for metric_name, metric in self.metrics.items():
-                self.writer.add_scalar(f'{metric_name}/Val (Epoch)', metric.compute(), step)
+                if metric_name != "MulticlassConfusionMatrix":
+                    self.writer.add_scalar(f'{metric_name}/Val (Epoch)', metric.compute(), step)
 
             # Early stopping
             if self.early_stopping(epoch):
-                raise Exception("Early stopping")
+                raise EarlyStoppingException()
             
         self.model.train()
         print( "Validation ended")
@@ -326,7 +324,7 @@ class Trainer():
             self.reset_metrics()
             try:
                 self.val_epoch(ep)
-            except Exception as e:
+            except EarlyStoppingException as e:
                 print(e)
                 break
             self.reset_metrics()
@@ -402,3 +400,11 @@ class TrainerMixUp(Trainer):
         self.loss_dict["train"][epoch] /= self.n_total_steps_train
 
         print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Loss: {self.loss_dict['train'][epoch]:.4f}, Time: {time.time()-time_epoch:.2f} s")
+
+class EarlyStoppingException(Exception):
+    # Exception raised for early stopping
+
+    def __init__(self, message="Early stopping"):
+        self.message = message
+        super().__init__(self.message)
+    
