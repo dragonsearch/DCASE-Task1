@@ -326,7 +326,7 @@ class Trainer():
             self.reset_metrics()
             try:
                 self.val_epoch(ep)
-            except Exception as e:
+            except EarlyStoppingException as e:
                 print(e)
                 break
             self.reset_metrics()
@@ -402,3 +402,11 @@ class TrainerMixUp(Trainer):
         self.loss_dict["train"][epoch] /= self.n_total_steps_train
 
         print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Loss: {self.loss_dict['train'][epoch]:.4f}, Time: {time.time()-time_epoch:.2f} s")
+
+class EarlyStoppingException(Exception):
+    # Exception raised for early stopping
+
+    def __init__(self, message="Early stopping"):
+        self.message = message
+        super().__init__(self.message)
+    
