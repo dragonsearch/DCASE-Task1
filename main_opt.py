@@ -54,7 +54,7 @@ def load_dataloaders(trial, params):
     audiodataset_train = AudioDataset_fold_cached(
         data_training_path + 'evaluation_setup/fold1_train.csv',
         data_training_path + 'audio',
-        mel_spectrogram, 22050,
+        mel_spectrogram, params['sample_rate'],
         'cuda',
         label_encoder= label_encoder,
         cache_transforms=False
@@ -62,7 +62,7 @@ def load_dataloaders(trial, params):
     audiodataset_val = AudioDataset_fold_cached(
         data_training_path + 'evaluation_setup/fold1_evaluate.csv',
         data_training_path + 'audio',
-        mel_spectrogram, 22050,
+        mel_spectrogram, params['sample_rate'],
         'cuda',
         label_encoder=label_encoder,
         cache_transforms=False
@@ -129,12 +129,16 @@ def get_metrics(params):
 
 def objective(trial, params):
     params_copy = params.copy()
+    sample_rate = 44100
+    n_fft = int(sample_rate * 0.04)
+    hop_length = n_fft // 2
+    n_mels = 40
     trial_model_params = {
-        'batch_size': trial.suggest_categorical('batch_size', [32, 64, 128]),
+        'batch_size': 16,#trial.suggest_categorical('batch_size', [16,32, 64, 128]),
         'name': trial.suggest_categorical('exp_name', ["OptTest"]) + str(trial.number),
         'end_epoch': trial.suggest_categorical('end_epoch', [2, 3]),
         "start_epoch": 1,
-        "end_epoch": 100,
+        "end_epoch": 200,
         'lr' : trial.suggest_float('lr', 1e-4, 1e-1, log=True),
         #'mixup_alpha': trial.suggest_categorical('mixup_alpha', [0]),
         #'mixup_prob': trial.suggest_categorical('mixup_prob', [0]),
@@ -143,16 +147,17 @@ def objective(trial, params):
         'metrics': {'MulticlassAccuracy': [10,1,'macro'], 'MulticlassConfusionMatrix': [10]},
         'device': "cuda",
         'model_file': 'model.py',
-        "model_class": "BaselineDCASECNN",
-        "early_stopping_patience": 10,
+        "model_class": "BaselineDCASECNN2",
+        "early_stopping_patience": 1000,
         "early_stopping_threshold": 0.01,
         "seed": 42,
         "train_split": 0.8,
         # Mel spectrogram parameters
-        "sample_rate": 22050,
-        "n_fft": 2048,
-        "hop_length": 512,
-        "n_mels": 64,
+        "sample_rate": sample_rate,
+        "n_fft": n_fft,
+        "hop_length": hop_length,
+        "n_mels": n_mels,
+        
         # Model parameters
         "dropout": 0.5
     }
@@ -177,7 +182,7 @@ def objective(trial, params):
 
     params_copy.update(trial_model_params)
     if 'summary' in params_copy and params_copy['summary']:
-        torchinfo.summary(model, input_size=(params_copy['batch_size'],1, 64,44))
+        torchinfo.summary(model, input_size=(params_copy['batch_size'],1, 40,51))
     if 'nessi' in params_copy and params_copy['nessi']:
         nessi.get_model_size(model,'torch', input_size=(params_copy['batch_size'],1, 64,44))
     if 'mixup_alpha' in params_copy and 'mixup_prob' in params_copy:
@@ -206,7 +211,7 @@ if do_training:
     }
     #Optuna study
     study = optuna.create_study(direction="minimize")
-    study.optimize(lambda trial: objective(trial, params), n_trials=100)
+    study.optimize(lambda trial: objective(trial, params), n_trials=1)
     #print('Best hyperparameters found were: ', results.get_best_result().config)
 
 
