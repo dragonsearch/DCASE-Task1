@@ -93,7 +93,7 @@ def load_dataloaders(trial, params):
     train_loader = DataLoader(mnist_dataset, batch_size=64, shuffle=True)
     val_loader = DataLoader(mnist_test_dataset, batch_size=64, shuffle=True)
     """
-    return train_loader, val_loader, test_loader
+    return train_loader, val_loader, test_loader, label_encoder
 
 def get_model(params):
     """
