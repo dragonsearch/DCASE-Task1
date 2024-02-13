@@ -57,7 +57,7 @@ def load_dataloaders(trial, params):
         mel_spectrogram, params['sample_rate'],
         'cuda',
         label_encoder= label_encoder,
-        cache_transforms=False
+        cache_transforms=params['cache_transforms']
         )
     audiodataset_val = AudioDataset_fold_cached(
         data_training_path + 'evaluation_setup/fold1_evaluate.csv',
@@ -65,7 +65,7 @@ def load_dataloaders(trial, params):
         mel_spectrogram, params['sample_rate'],
         'cuda',
         label_encoder=label_encoder,
-        cache_transforms=False
+        cache_transforms=params['cache_transforms']
         )
     # Not using the evaluation set for now
     audio_evaluation_dataset = AudioDatasetEval(
@@ -157,7 +157,7 @@ def objective(trial, params):
         "n_fft": n_fft,
         "hop_length": hop_length,
         "n_mels": n_mels,
-        
+        "cache_transforms": False,
         # Model parameters
         "dropout": 0.5
     }
@@ -213,5 +213,7 @@ if do_training:
     study = optuna.create_study(direction="minimize")
     study.optimize(lambda trial: objective(trial, params), n_trials=1)
     #print('Best hyperparameters found were: ', results.get_best_result().config)
-
+    import pickle
+    with open('models/study.pkl', 'wb') as f:
+        pickle.dump(study, f)
 
