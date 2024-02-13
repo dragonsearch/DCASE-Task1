@@ -213,5 +213,7 @@ if do_training:
     study = optuna.create_study(direction="minimize")
     study.optimize(lambda trial: objective(trial, params), n_trials=1)
     #print('Best hyperparameters found were: ', results.get_best_result().config)
-
+    import pickle
+    with open('models/study.pkl', 'wb') as f:
+        pickle.dump(study, f)
 
