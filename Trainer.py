@@ -259,6 +259,8 @@ class Trainer():
             #Add to tensorboard
             self.writer.add_image(f"Confusion Matrix/Epoch{epoch}", confusion_image_bytes, epoch)
 
+            #Close the figure
+            plt.close(fig)
 
             #Plots for every epoch
             self.writer.add_scalar('Loss/Val (Epoch)', loss.item(), step)
