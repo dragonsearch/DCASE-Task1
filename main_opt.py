@@ -10,7 +10,6 @@ import Evaluator
 import numpy as np
 import nessi
 
-from dataset import AudioDataset_fold, AudioDatasetEval, AudioDataset_with_tensorboard, AudioDataset_fold_cached
 from sklearn.preprocessing import LabelEncoder, LabelBinarizer
 
 #REMOVE LATER TESTING PURPOSES
@@ -18,6 +17,11 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
 
+import dataset
+from dataset.base_dataset import Base_dataset
+from dataset.cached_dataset import Cached_dataset
+from dataset.eval_dataset import Eval_dataset
+from dataset.meta_dataset import Meta_dataset
 
 import optuna
 
@@ -41,17 +45,18 @@ def load_dataloaders(trial, params):
             hop_length=params['hop_length'],
             n_mels=params['n_mels'],
         )
-    """
-    audiodataset = AudioDataset_with_tensorboard(
-        data_training_path + 'meta.csv', 
-        data_training_path + 'audio', 
-        mel_spectrogram, params['sample_rate'],
-        'cuda',
-        label_encoder=LabelEncoder()
-        )
-    """
+    if 'tensorboard' in params and params['tensorboard']:
+        audiodataset = Meta_dataset(
+            data_training_path + 'meta.csv', 
+            data_training_path + 'audio', 
+            mel_spectrogram, params['sample_rate'],
+            'cuda',
+            label_encoder=LabelEncoder(),
+            tensorboard=True
+            )
+    
     label_encoder = LabelEncoder()
-    audiodataset_train = AudioDataset_fold_cached(
+    audiodataset_train = Cached_dataset(
         data_training_path + 'evaluation_setup/fold1_train.csv',
         data_training_path + 'audio',
         mel_spectrogram, params['sample_rate'],
@@ -59,7 +64,7 @@ def load_dataloaders(trial, params):
         label_encoder= label_encoder,
         cache_transforms=params['cache_transforms']
         )
-    audiodataset_val = AudioDataset_fold_cached(
+    audiodataset_val = Cached_dataset(
         data_training_path + 'evaluation_setup/fold1_evaluate.csv',
         data_training_path + 'audio',
         mel_spectrogram, params['sample_rate'],
@@ -68,7 +73,7 @@ def load_dataloaders(trial, params):
         cache_transforms=params['cache_transforms']
         )
     # Not using the evaluation set for now
-    audio_evaluation_dataset = AudioDatasetEval(
+    audio_evaluation_dataset = Eval_dataset(
         data_evaluation_path + 'evaluation_setup/fold1_test.csv', 
         data_evaluation_path + 'audio', 
         mel_spectrogram, params['sample_rate'],
@@ -135,7 +140,7 @@ def objective(trial, params):
     n_mels = 40
     trial_model_params = {
         'batch_size': 16,#trial.suggest_categorical('batch_size', [16,32, 64, 128]),
-        'name': trial.suggest_categorical('exp_name', ["OptTest"]) + str(trial.number),
+        'name': trial.suggest_categorical('exp_name', ["DatasetTest"]) + str(trial.number),
         'end_epoch': trial.suggest_categorical('end_epoch', [2, 3]),
         "start_epoch": 1,
         "end_epoch": 200,
@@ -159,7 +164,10 @@ def objective(trial, params):
         "n_mels": n_mels,
         "cache_transforms": False,
         # Model parameters
-        "dropout": 0.5
+        "dropout": 0.5,
+        #Tensorboard
+        "tensorboard": True
+
     }
     params_copy.update(trial_model_params)
     torch.device(params_copy['device'])
