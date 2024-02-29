@@ -140,7 +140,7 @@ def objective(trial, params):
     n_mels = 40
     trial_model_params = {
         'batch_size': 16,#trial.suggest_categorical('batch_size', [16,32, 64, 128]),
-        'name': trial.suggest_categorical('exp_name', ["DatasetTest"]) + str(trial.number),
+        'name': trial.suggest_categorical('exp_name', ["OptTest"]) + str(trial.number),
         'end_epoch': trial.suggest_categorical('end_epoch', [2, 3]),
         "start_epoch": 1,
         "end_epoch": 200,
