@@ -24,7 +24,7 @@ from dataset.eval_dataset import Eval_dataset
 from dataset.meta_dataset import Meta_dataset
 
 import optuna
-
+import importlib
 
 # Absolute paths
 import os
@@ -108,7 +108,10 @@ def get_model(params):
     """
     # Import the model (from model_path)
     model_file = params['model_file']
-    imp = __import__(model_file[:model_file.index(".")])
+    #Import lib
+    imp = importlib.import_module(model_file.replace('.py',''))
+
+
 
     model_class = params["model_class"]
     # Create the model
