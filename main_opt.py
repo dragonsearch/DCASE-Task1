@@ -134,7 +134,9 @@ def get_metrics(params):
     metrics_str = params['metrics']
     metrics = {metric : getattr(torchmetrics.classification, metric)(*metrics_str[metric]) for metric in metrics_str}
     return metrics
-
+def get_scheduler(optimizer, params):
+    # Return cosine annealing warm  scheduler
+    return torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=30, T_mult=1, eta_min=1e-6, last_epoch=-1)
 def objective(trial, params):
     params_copy = params.copy()
     sample_rate = 44100
@@ -181,6 +183,7 @@ def objective(trial, params):
     optimizer = get_optimizer(model, params_copy)
     criterion = get_criterion(params_copy)
     metrics = get_metrics(params_copy)
+    scheduler = get_scheduler(optimizer, params_copy)
     trial_model_params = {
         'model': model,
         'criterion': criterion,
@@ -189,6 +192,7 @@ def objective(trial, params):
         'train_loader': train_loader,
         'val_loader': val_loader,
         'label_encoder': label_encoder,
+        'lr_scheduler': scheduler
     }
 
     params_copy.update(trial_model_params)
