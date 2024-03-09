@@ -19,7 +19,7 @@ import requests
 # are in each subdirectory.
 import os
 
-def save_ckpt(model, optimizer, PATH, params={}):
+def save_ckpt(model, optimizer, scheduler, PATH, params={}):
     """
     Args:
         model (torch.nn.Module): Model to be saved
@@ -29,12 +29,14 @@ def save_ckpt(model, optimizer, PATH, params={}):
     """
     #Join 2 dicts using | (python 3.9) (for python 3.5+ {**x, **y})
     save_dict = {'model_state_dict':model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict()
+                'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict() 
+                if scheduler is not None else None,
                 }# | params
     torch.save(save_dict, PATH)
     print(f'Saved model (ckpt) into: {PATH}')
 
-def load_ckpt(model,optimizer,PATH):
+def load_ckpt(model,optimizer, scheduler, PATH):
     """
     Args:
         model (torch.nn.Module): Model to be loaded
@@ -45,6 +47,9 @@ def load_ckpt(model,optimizer,PATH):
     checkpoint = torch.load(PATH)
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    if 'scheduler_state_dict' in checkpoint and checkpoint['scheduler_state_dict'] is not None:
+        scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+        
     print(f'Loaded model (ckpt) from: {PATH}')
     return model, optimizer
 

@@ -54,6 +54,7 @@ class Trainer():
         self.n_total_steps_val = len(self.val_loader)
         self.loss_dict = {stage : {i:-100 for i in range(1,self.num_epochs+1)} for stage in ["train", "val"]}
         self.metrics_dict = {stage : None for stage in ["train", "val"]}
+        self.lr_scheduler = params['lr_scheduler']
         for stage in ["train", "val"]:
             self.metrics_dict[stage] = {str(metric) : {i:-100 for i in range(1,self.num_epochs+1)} for metric in self.metrics} 
         self.params = params.copy()
@@ -109,7 +110,7 @@ class Trainer():
 
     def load_model(self, epoch):
         ckpt_path = 'models/' + self.name + "/ckpt" + "/model_" + str(self.name) + '_' + str(epoch) + ".pth"
-        self.model, self.optimizer = load_ckpt(self.model, self.optimizer, ckpt_path)
+        self.model, self.optimizer = load_ckpt(self.model, self.optimizer, self.lr_scheduler, ckpt_path)
         self.model = self.model.to(self.device)
         print("Loading model with loss: ", self.loss_dict["train"][epoch], "from ", ckpt_path)
     
@@ -118,7 +119,7 @@ class Trainer():
     """
     def save_model(self, epoch):
         ckpt_path = 'models/' + self.name + "/ckpt" + "/model_" + str(self.name) + '_' + str(epoch) + ".pth"
-        save_ckpt(self.model, self.optimizer, ckpt_path, epoch)
+        save_ckpt(self.model, self.optimizer, self.lr_scheduler, ckpt_path, epoch)
         print("Saving model with loss: ", self.loss_dict["train"][epoch], "as ", ckpt_path)
         self.save_dicts()
 
@@ -160,6 +161,7 @@ class Trainer():
             samples = samples.to(self.device)
             labels = labels.to(self.device)
             y_pred,loss = self.train_step(samples, labels)
+            self.lr_scheduler.step(epoch + i / self.n_total_steps_train)
             # Add loss and metrics
             self.loss_dict["train"][epoch] += loss.item()
             self.add_to_metric(y_pred, labels)
@@ -205,7 +207,6 @@ class Trainer():
 
         loss.backward()
         self.optimizer.step()
-
         return y_pred, loss
 
 
@@ -388,9 +389,16 @@ class TrainerMixUp(Trainer):
             labels = labels.to(self.device)
             samples, labels_a, labels_b, lam = self.mixup_data(samples, labels)
             y_pred,loss = self.train_step(samples, labels_a, labels_b , lam)
+            self.lr_scheduler.step(epoch + i / self.n_total_steps_train)
             # Add loss and metrics
             self.loss_dict["train"][epoch] += loss.item()
             self.add_to_metric(y_pred, labels)
+            #Add scalars to a Tensorboard 
+            step = (epoch - 1) * len(self.train_loader) + i
+            self.writer.add_scalar('Loss/train', loss.item(), step)
+            for metric_name, metric in self.metrics.items():
+                if metric_name != "MulticlassConfusionMatrix":
+                    self.writer.add_scalar(f'{metric_name}/train', metric.compute(), step)
             if (i+1) % 100 == 0:
                 print (f'Step [{i+1}/{self.n_total_steps_train}], Loss: {loss.item():.4f}, Time: {time.time()-time_epoch:.2f} s')
         # Compute metrics
@@ -398,7 +406,11 @@ class TrainerMixUp(Trainer):
 
         # Compute loss
         self.loss_dict["train"][epoch] /= self.n_total_steps_train
-
+        #Add scalars to a Tensorboard for each epoch
+        self.writer.add_scalar('Loss/train (Epoch)', loss.item(), step)
+        for metric_name, metric in self.metrics.items():
+            if metric_name != "MulticlassConfusionMatrix":
+                self.writer.add_scalar(f'{metric_name}/train (Epoch)', metric.compute(), step)
         print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Loss: {self.loss_dict['train'][epoch]:.4f}, Time: {time.time()-time_epoch:.2f} s")
 
 class EarlyStoppingException(Exception):
