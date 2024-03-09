@@ -393,6 +393,12 @@ class TrainerMixUp(Trainer):
             # Add loss and metrics
             self.loss_dict["train"][epoch] += loss.item()
             self.add_to_metric(y_pred, labels)
+            #Add scalars to a Tensorboard 
+            step = (epoch - 1) * len(self.train_loader) + i
+            self.writer.add_scalar('Loss/train', loss.item(), step)
+            for metric_name, metric in self.metrics.items():
+                if metric_name != "MulticlassConfusionMatrix":
+                    self.writer.add_scalar(f'{metric_name}/train', metric.compute(), step)
             if (i+1) % 100 == 0:
                 print (f'Step [{i+1}/{self.n_total_steps_train}], Loss: {loss.item():.4f}, Time: {time.time()-time_epoch:.2f} s')
         # Compute metrics
@@ -400,7 +406,11 @@ class TrainerMixUp(Trainer):
 
         # Compute loss
         self.loss_dict["train"][epoch] /= self.n_total_steps_train
-
+        #Add scalars to a Tensorboard for each epoch
+        self.writer.add_scalar('Loss/train (Epoch)', loss.item(), step)
+        for metric_name, metric in self.metrics.items():
+            if metric_name != "MulticlassConfusionMatrix":
+                self.writer.add_scalar(f'{metric_name}/train (Epoch)', metric.compute(), step)
         print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Loss: {self.loss_dict['train'][epoch]:.4f}, Time: {time.time()-time_epoch:.2f} s")
 
 class EarlyStoppingException(Exception):
