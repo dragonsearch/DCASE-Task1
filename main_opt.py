@@ -14,7 +14,7 @@ from sklearn.preprocessing import LabelEncoder, LabelBinarizer
 
 #REMOVE LATER TESTING PURPOSES
 from torchvision import datasets
-from torchvision.transforms import ToTensor
+from torchvision.transforms import ToTensor, v2
 from torch.utils.data import DataLoader
 
 import dataset
@@ -23,6 +23,7 @@ from dataset.cached_dataset import Cached_dataset
 from dataset.eval_dataset import Eval_dataset
 from dataset.meta_dataset import Meta_dataset
 
+from transforms import CustomTransformSpectrogram, CustomTransformAudio
 import optuna
 
 
@@ -44,12 +45,17 @@ def load_dataloaders(trial, params):
             n_fft=params['n_fft'],
             hop_length=params['hop_length'],
             n_mels=params['n_mels'],
-        )
+        ).to(params['device'])
+    data_augmentation_transform = v2.Compose([
+        CustomTransformSpectrogram(),
+        mel_spectrogram,
+    ]) 
+    
     if 'tensorboard' in params and params['tensorboard']:
         audiodataset = Meta_dataset(
             data_training_path + 'meta.csv', 
             data_training_path + 'audio', 
-            mel_spectrogram, params['sample_rate'],
+            data_augmentation_transform, params['sample_rate'],
             'cuda',
             label_encoder=LabelEncoder(),
             tensorboard=True
@@ -59,10 +65,11 @@ def load_dataloaders(trial, params):
     audiodataset_train = Cached_dataset(
         data_training_path + 'evaluation_setup/fold1_train.csv',
         data_training_path + 'audio',
-        mel_spectrogram, params['sample_rate'],
+        data_augmentation_transform, params['sample_rate'],
         'cuda',
         label_encoder= label_encoder,
-        cache_transforms=params['cache_transforms']
+        cache_transforms=params['cache_transforms'],
+        #data_augmentation=params['data_augmentation']
         )
     audiodataset_val = Cached_dataset(
         data_training_path + 'evaluation_setup/fold1_evaluate.csv',
@@ -70,7 +77,8 @@ def load_dataloaders(trial, params):
         mel_spectrogram, params['sample_rate'],
         'cuda',
         label_encoder=label_encoder,
-        cache_transforms=params['cache_transforms']
+        cache_transforms=params['cache_transforms'],
+        #data_augmentation=params['data_augmentation']
         )
     # Not using the evaluation set for now
     audio_evaluation_dataset = Eval_dataset(
@@ -166,7 +174,7 @@ def objective(trial, params):
         # Model parameters
         "dropout": 0.5,
         #Tensorboard
-        "tensorboard": True
+        "tensorboard": False
 
     }
     params_copy.update(trial_model_params)
