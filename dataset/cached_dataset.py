@@ -7,6 +7,7 @@ import torchaudio
 from sklearn.preprocessing import LabelEncoder
 from torch.utils.tensorboard import SummaryWriter
 from matplotlib import pyplot as plt
+from torchaudio.transforms import Resample, Vol, TimeMasking, FrequencyMasking, TimeStretch, PitchShift
 #import dataset.base_dataset as base_dataset
 from dataset.base_dataset import Base_dataset
 class Cached_dataset(Base_dataset):
@@ -28,22 +29,37 @@ class Cached_dataset(Base_dataset):
         """
        
         super().__init__(content_file, audio_dir, transformations , sample_rate_target, device, label_encoder)
+
         if not os.path.exists('data/cache'):
             os.makedirs('data/cache')
         if cache_transforms:
             self._cache_transforms()
         #self._test_cached_transforms()
+            
+        
 
     def _transform_data(self, index):
+        
         audio_sample_path = self._get_audio_sample_path(index)
         filename = self._get_audio_sample_filename(index)
         signal, sr = torchaudio.load(audio_sample_path)
+
+        # Move the signal to the correct device
         signal = signal.to(self.device)
-        #resample and mixdown if necessary (assuming dissonance in the dataset)
+
+        # Resample and mixdown if necessary (assuming dissonance in the dataset)
         signal = self._resample_if_needed(signal, sr)
         signal = self._mix_down_if_needed(signal)
-        signal = self.transformations(signal)
-        return signal, sr, filename
+
+        # Apply the Compose transformations to the signal
+        signal_transformed = self.transformations(signal)
+
+        # Move the transformed signal back to the original device
+        signal_transformed = signal_transformed.to(self.device)
+
+        return signal_transformed, sr, filename
+
+            
 
     def _test_cached_transforms(self):
         """
@@ -63,6 +79,7 @@ class Cached_dataset(Base_dataset):
             signal = self._resample_if_needed(signal, sr)
             signal = self._mix_down_if_needed(signal)
             signal = self.transformations(signal)
+            
             cached_signal = torch.load(f'data/cache/{filename}.pt')
             assert torch.equal(signal, cached_signal)
         
@@ -96,3 +113,4 @@ class Cached_dataset(Base_dataset):
         signal = torch.load(f'data/cache/{filename}.pt')
         
         return signal, label, filename
+    
