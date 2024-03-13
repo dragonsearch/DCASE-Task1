@@ -18,11 +18,42 @@ class TfSepNet(torch.nn.Module):
         self.shuffle_groups = shuffle_groups
 
         self.feature = self.make_layers(cfg)
-
         i = -1
         while isinstance(cfg[i], str):
             i -= 1
         self.classifier = nn.Conv2d(round(cfg[i] * self.width), 10, 1, bias=True)
+        self.beta = torch.distributions.Beta(0.1, 0.1)
+        self.eps = 1e-6
+        self.alpha = 0.1
+        self.p = 0.5
+
+    def freq_mixstyle(self,x):
+        if not self.training:
+            return x
+        if torch.rand(1) > self.p:
+            return x
+    
+        B = x.size(0)
+
+        mu = x.mean(dim=[1, 3], keepdim=True)
+        var = x.var(dim=[1, 3], keepdim=True)
+        sig = (var + self.eps).sqrt()
+        mu, sig = mu.detach(), sig.detach()
+        x_normed = (x-mu) / sig
+
+        lmda = self.beta.sample((B, 1, 1, 1))
+        lmda = lmda.to(x.device)
+        # Random domain shuffle
+        perm = torch.randperm(B)
+        
+        mu2, sig2 = mu[perm], sig[perm]
+        #mu_mix = mu*lmda + mu2 * (1-lmda)
+        mu_mix = torch.lerp(mu2, mu, lmda)
+        #sig_mix = sig*lmda + sig2 * (1-lmda)
+        sig_mix = torch.lerp(sig2, sig, lmda)
+        return x_normed*sig_mix + mu_mix
+
+        
 
     def make_layers(self, cfg):
         layers = []
@@ -70,6 +101,7 @@ class TfSepNet(torch.nn.Module):
                 torch.nn.init.constant_(l.temp_pw_conv.conv.bias, 0)
 
     def forward(self, x):
+        
         x = self.feature(x)
         y = self.classifier(x)
         y = y.mean((-1, -2), keepdim=False)
