@@ -122,7 +122,8 @@ class Cached_dataset(Base_dataset):
         """
         filename = self._get_audio_sample_filename(index)
         label = self._get_audio_sample_label(index)
-        signal = torch.load(f'data/cache/{filename}.pt')
-        
-        return signal, label, filename
-    
+        rand = torch.rand(1)
+        for i, transform_set in self.transform_sets.items():
+            if  rand <= self.transform_probs[i]+1e-8:
+                signal = torch.load(f'data/cache/{i}/{filename}.pt')
+                return signal, label, filename
