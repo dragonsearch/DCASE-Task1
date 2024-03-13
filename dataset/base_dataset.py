@@ -28,7 +28,7 @@ class Base_dataset(Dataset):
         self.content = pd.read_csv(content_file, sep='\t')
         self.audio_dir = audio_dir
         self.device = device
-        self.transformations = transformations.to(self.device)
+        self.transformations = transformations.to(self.device) if transformations else lambda x: x
         self.sample_rate_target = sample_rate_target
         self.label_encoder = label_encoder
         self.encoded_labels = self.content.copy()
