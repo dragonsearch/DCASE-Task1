@@ -49,7 +49,7 @@ class Cached_dataset(Base_dataset):
             
         
 
-    def _transform_data(self, index):
+    def _transform_data(self, index, transform):
         
         audio_sample_path = self._get_audio_sample_path(index)
         filename = self._get_audio_sample_filename(index)
@@ -63,7 +63,7 @@ class Cached_dataset(Base_dataset):
         signal = self._mix_down_if_needed(signal)
 
         # Apply the Compose transformations to the signal
-        signal_transformed = self.transformations(signal)
+        signal_transformed = transform(signal)
 
         # Move the transformed signal back to the original device
         signal_transformed = signal_transformed.to(self.device)
@@ -105,9 +105,10 @@ class Cached_dataset(Base_dataset):
         :param sr: The `sr` parameter is the sample rate of the audio signal
         :return: None
         """
-        for i in range(0, len(self.content)):
-            signal, sr, filename = self._transform_data(i)
-            torch.save(signal, f'data/cache/{filename}.pt')
+        for i, transform_set in self.transform_sets.items():
+                for j in range(0, len(self.content)):
+                    signal, sr, filename = self._transform_data(j, transform_set)
+                    torch.save(signal, f'data/cache/{i}/{filename}.pt')
         print("Transformations are cached to disk")
     
     def __getitem__(self, index):
