@@ -11,7 +11,7 @@ from torchaudio.transforms import Resample, Vol, TimeMasking, FrequencyMasking, 
 #import dataset.base_dataset as base_dataset
 from dataset.base_dataset import Base_dataset
 class Cached_dataset(Base_dataset):
-    def __init__(self, content_file, audio_dir, transformations , sample_rate_target, device, label_encoder, cache_transforms=True):
+    def __init__(self, content_file, audio_dir, transformations , transform_probs, sample_rate_target, device, label_encoder, cache_transforms=True):
         """
         The function initializes an object with a content file and an audio directory.
         
@@ -28,10 +28,21 @@ class Cached_dataset(Base_dataset):
         are already cached to disk. If the transformations are already cached, then this parameter should be False
         """
        
-        super().__init__(content_file, audio_dir, transformations , sample_rate_target, device, label_encoder)
+        super().__init__(content_file, audio_dir, None, sample_rate_target, device, label_encoder)
 
         if not os.path.exists('data/cache'):
             os.makedirs('data/cache')
+        for i,_ in enumerate(transformations):
+            if not os.path.exists(f'data/cache/{i}'):
+                os.makedirs(f'data/cache/{i}')
+        self.transform_sets = {i: transform_set.to(self.device)
+                              for i, transform_set in enumerate(transformations)}
+        # Calc cumulative sum of transform_probs
+        if sum(transform_probs) < 0.99 or sum(transform_probs) > 1.01:
+            raise ValueError("The sum of the transform probabilities must be 1")
+        self.transform_probs = np.cumsum(transform_probs)
+        if len(self.transform_probs) != len(transformations):
+            raise ValueError("The number of transform probabilities must be equal to the number of transformations")
         if cache_transforms:
             self._cache_transforms()
         #self._test_cached_transforms()
