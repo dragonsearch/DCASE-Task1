@@ -24,6 +24,7 @@ from dataset.eval_dataset import Eval_dataset
 from dataset.meta_dataset import Meta_dataset
 
 from transforms import CustomTransformSpectrogram, CustomTransformAudio
+from torchaudio.transforms import Resample, Vol, TimeMasking, FrequencyMasking, TimeStretch, PitchShift
 import optuna
 import importlib
 
@@ -46,16 +47,21 @@ def load_dataloaders(trial, params):
             hop_length=params['hop_length'],
             n_mels=params['n_mels'],
         ).to(params['device'])
-    data_augmentation_transform = v2.Compose([
-        CustomTransformSpectrogram(),
-        mel_spectrogram,
-    ]) 
-    
+    data_augmentation_transforms = [
+    v2.Compose([mel_spectrogram]),
+    v2.Compose([mel_spectrogram, FrequencyMasking(freq_mask_param=10).to(params['device'])]),
+    v2.Compose([mel_spectrogram, TimeMasking(time_mask_param=10).to(params['device'])]),
+    v2.Compose([PitchShift(32050, n_steps=4).to(params['device']), mel_spectrogram]),
+    v2.Compose([Vol(gain=0.5).to(params['device']), mel_spectrogram]),
+
+    ]
+
+    data_augmentation_transform_probs = [0.6, 0.1, 0.1, 0.1, 0.1]
     if 'tensorboard' in params and params['tensorboard']:
         audiodataset = Meta_dataset(
             data_training_path + 'meta.csv', 
             data_training_path + 'audio', 
-            data_augmentation_transform, params['sample_rate'],
+            data_augmentation_transforms, params['sample_rate'],
             'cuda',
             label_encoder=LabelEncoder(),
             tensorboard=True
@@ -65,7 +71,9 @@ def load_dataloaders(trial, params):
     audiodataset_train = Cached_dataset(
         data_training_path + 'evaluation_setup/fold1_train.csv',
         data_training_path + 'audio',
-        data_augmentation_transform, params['sample_rate'],
+        data_augmentation_transforms,
+        data_augmentation_transform_probs,
+        params['sample_rate'],
         'cuda',
         label_encoder= label_encoder,
         cache_transforms=params['cache_transforms'],
@@ -74,7 +82,9 @@ def load_dataloaders(trial, params):
     audiodataset_val = Cached_dataset(
         data_training_path + 'evaluation_setup/fold1_evaluate.csv',
         data_training_path + 'audio',
-        mel_spectrogram, params['sample_rate'],
+        [ v2.Compose([mel_spectrogram]) ],
+        [1],
+        params['sample_rate'],
         'cuda',
         label_encoder=label_encoder,
         cache_transforms=params['cache_transforms'],
