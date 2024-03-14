@@ -75,7 +75,7 @@ class Trainer():
             self.writer.add_text(metrics, str(value))
 
         #Save model graph to tensorboard with a example input from the dataloader
-        self.writer.add_graph(self.model, next(iter(self.train_loader))[0].to(self.device))
+        #self.writer.add_graph(self.model, next(iter(self.train_loader))[0].to(self.device))
     
         
     

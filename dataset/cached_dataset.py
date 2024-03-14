@@ -53,6 +53,7 @@ class Cached_dataset(Base_dataset):
         
         audio_sample_path = self._get_audio_sample_path(index)
         filename = self._get_audio_sample_filename(index)
+        device = self._get_audio_recording_device(index)
         signal, sr = torchaudio.load(audio_sample_path)
 
         # Move the signal to the correct device
@@ -68,7 +69,7 @@ class Cached_dataset(Base_dataset):
         # Move the transformed signal back to the original device
         signal_transformed = signal_transformed.to(self.device)
 
-        return signal_transformed, sr, filename
+        return signal_transformed, sr, filename, device
 
             
 
@@ -107,7 +108,7 @@ class Cached_dataset(Base_dataset):
         """
         for i, transform_set in self.transform_sets.items():
                 for j in range(0, len(self.content)):
-                    signal, sr, filename = self._transform_data(j, transform_set)
+                    signal, sr, filename, device = self._transform_data(j, transform_set)
                     torch.save(signal, f'data/cache/{i}/{filename}.pt')
         print("Transformations are cached to disk")
     
@@ -122,8 +123,11 @@ class Cached_dataset(Base_dataset):
         """
         filename = self._get_audio_sample_filename(index)
         label = self._get_audio_sample_label(index)
+        device = self._get_audio_recording_device(index)
         rand = torch.rand(1)
         for i, transform_set in self.transform_sets.items():
             if  rand <= self.transform_probs[i]+1e-8:
                 signal = torch.load(f'data/cache/{i}/{filename}.pt')
-                return signal, label, filename
+                return signal, label, filename, device
+
+

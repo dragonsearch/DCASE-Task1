@@ -33,6 +33,7 @@ class Base_dataset(Dataset):
         self.label_encoder = label_encoder
         self.encoded_labels = self.content.copy()
         self.encoded_labels.iloc[:, 1] = self.label_encoder.fit_transform(self.content.iloc[:, 1])
+        self.metadata = pd.read_csv('data/TAU-urban-acoustic-scenes-2022-mobile-development/meta.csv', sep='\t')
 
         if tensorboard:
             self.writer = SummaryWriter(f'runs/DatasetAudio')
@@ -95,6 +96,7 @@ class Base_dataset(Dataset):
         audio_sample_path = self._get_audio_sample_path(index)
         filename = self._get_audio_sample_filename(index)
         label = self._get_audio_sample_label(index)
+        rec_device = self._get_audio_recording_device(index)
         signal, sr = torchaudio.load(audio_sample_path)
         signal = signal.to(self.device)
         #resample and mixdown if necessary (assuming dissonance in the dataset)
@@ -103,7 +105,20 @@ class Base_dataset(Dataset):
 
         signal = self.transformations(signal)
         
-        return signal, label, filename
+        return signal, label, filename, rec_device
+    
+    def _get_audio_recording_device(self,index):
+        """
+        The function `_get_audio_device` returns the device where the audio sample was recorded.
+        
+        :param index: The index parameter is the index of the audio sample in the dataset. It is used to
+        locate the audio sample in the dataset and retrieve its device
+        :return: the device where the audio sample was recorded.
+        """
+        if len(self.content) > 139000:
+            return self.metadata.iloc[index, 3]
+        else:
+            return self.metadata.iloc[(index + 139622), 3]
      
     def _get_audio_sample_path(self, index):
         """
@@ -143,3 +158,5 @@ class Base_dataset(Dataset):
         """
     
         return self.content.iloc[index, 0].replace('audio/', '')
+
+
