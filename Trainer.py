@@ -143,9 +143,15 @@ class Trainer():
         y_pred = torch.as_tensor(y_pred, dtype=torch.float64)
 
         for metric in self.metrics:
-            self.metrics[metric].update(y_pred, y_true)
+            if metric != "DevAccuracy":
+                self.metrics[metric].update(y_pred, y_true)
+                
 
-
+    def add_to_dev_accuracy(self, y_pred, y_true, devices):
+        """
+        Adds the predictions and the labels to the metrics
+        """
+        self.metrics['DevAccuracy'].update(y_pred, y_true, devices)
  
     def train_epoch(self,epoch):
         """
@@ -161,16 +167,19 @@ class Trainer():
             samples = samples.to(self.device)
             labels = labels.to(self.device)
             y_pred,loss = self.train_step(samples, labels)
+            devices = rest[1].to(self.device)
             self.lr_scheduler.step(epoch + i / self.n_total_steps_train)
             # Add loss and metrics
             self.loss_dict["train"][epoch] += loss.item()
             self.add_to_metric(y_pred, labels)
+            if 'DevAccuracy' in self.metrics:
+                self.add_to_dev_accuracy(y_pred, labels, devices)
 
             #Add scalars to a Tensorboard 
             step = (epoch - 1) * len(self.train_loader) + i
             self.writer.add_scalar('Loss/train', loss.item(), step)
             for metric_name, metric in self.metrics.items():
-                if metric_name != "MulticlassConfusionMatrix":
+                if metric_name != "MulticlassConfusionMatrix" and metric_name != "DevAccuracy":
                     self.writer.add_scalar(f'{metric_name}/train', metric.compute(), step)
                 
             
@@ -190,7 +199,7 @@ class Trainer():
         #Add scalars to a Tensorboard for each epoch
         self.writer.add_scalar('Loss/train (Epoch)', loss.item(), step)
         for metric_name, metric in self.metrics.items():
-            if metric_name != "MulticlassConfusionMatrix":
+            if metric_name != "MulticlassConfusionMatrix" and metric_name != "DevAccuracy":
                 self.writer.add_scalar(f'{metric_name}/train (Epoch)', metric.compute(), step)
 
     def train_step(self, samples, labels):  
@@ -223,15 +232,18 @@ class Trainer():
             for i, (samples, labels,*rest) in enumerate(self.val_loader):
                 samples = samples.to(self.device)
                 labels = labels.to(self.device)
+                devices = rest[1].to(self.device)
                 y_pred,loss = self.val_step(samples, labels, epoch)
                 # Add loss and metrics
                 self.loss_dict["val"][epoch] += loss.item()
                 self.add_to_metric(y_pred, labels)
+                if 'DevAccuracy' in self.metrics:
+                    self.add_to_dev_accuracy(y_pred, labels, devices)
                 #Add scalars to Tensorboard
                 step = (epoch - 1) * len(self.val_loader) + i
                 self.writer.add_scalar('Loss/Val', loss.item(), step)
                 for metric_name, metric in self.metrics.items():
-                    if metric_name != "MulticlassConfusionMatrix":
+                    if metric_name != "MulticlassConfusionMatrix" and metric_name != "DevAccuracy":
                         self.writer.add_scalar(f'{metric_name}/Val', metric.compute(), step)
                 if (i+1) % 100 == 0:
                     print (f'Step [{i+1}/{self.n_total_steps_val}], Loss: {loss.item():.4f}, Time: {time.time()-time_step:.2f} s')
@@ -256,15 +268,26 @@ class Trainer():
             confusion_image = confusion_display.plot(cmap=plt.cm.Blues, ax=ax, values_format=".2f").figure_
             confusion_image_bytes = self.plot_to_image(confusion_image)
             
+            #Print device accuracy
+            if 'DevAccuracy' in self.metrics_dict['val']:
+                fig, ax = plt.subplots(figsize=(18,18))
+                device_accuracy = self.metrics_dict['val']['DevAccuracy'][epoch].cpu().numpy()
+                ax.bar(np.arange(len(device_accuracy)), device_accuracy)
+                ax.set_xticks(np.arange(len(device_accuracy)))
+                ax.set_xticklabels(self.val_loader.dataset.device_encoder.inverse_transform(np.arange(len(device_accuracy))))
+                device_accuracy_image = ax.figure
+                device_accuracy_image_bytes = self.plot_to_image(device_accuracy_image)
+                self.writer.add_image(f"Device Accuracy/Epoch{epoch}", device_accuracy_image_bytes, epoch)
+                print(self.metrics_dict['val']['DevAccuracy'][epoch].cpu().numpy())
 
             #Add to tensorboard
             self.writer.add_image(f"Confusion Matrix/Epoch{epoch}", confusion_image_bytes, epoch)
-
+           
 
             #Plots for every epoch
             self.writer.add_scalar('Loss/Val (Epoch)', loss.item(), step)
             for metric_name, metric in self.metrics.items():
-                if metric_name != "MulticlassConfusionMatrix":
+                if metric_name != "MulticlassConfusionMatrix" and metric_name != "DevAccuracy":
                     self.writer.add_scalar(f'{metric_name}/Val (Epoch)', metric.compute(), step)
 
             # Early stopping
@@ -392,12 +415,15 @@ class TrainerMixUp(Trainer):
             self.lr_scheduler.step(epoch + i / self.n_total_steps_train)
             # Add loss and metrics
             self.loss_dict["train"][epoch] += loss.item()
+            devices = rest[1].to(self.device)
             self.add_to_metric(y_pred, labels)
+            if 'DevAccuracy' in self.metrics:
+                self.add_to_dev_accuracy(y_pred, labels, devices)
             #Add scalars to a Tensorboard 
             step = (epoch - 1) * len(self.train_loader) + i
             self.writer.add_scalar('Loss/train', loss.item(), step)
             for metric_name, metric in self.metrics.items():
-                if metric_name != "MulticlassConfusionMatrix":
+                if metric_name != "MulticlassConfusionMatrix" and metric_name != "DevAccuracy":
                     self.writer.add_scalar(f'{metric_name}/train', metric.compute(), step)
             if (i+1) % 100 == 0:
                 print (f'Step [{i+1}/{self.n_total_steps_train}], Loss: {loss.item():.4f}, Time: {time.time()-time_epoch:.2f} s')
@@ -409,7 +435,7 @@ class TrainerMixUp(Trainer):
         #Add scalars to a Tensorboard for each epoch
         self.writer.add_scalar('Loss/train (Epoch)', loss.item(), step)
         for metric_name, metric in self.metrics.items():
-            if metric_name != "MulticlassConfusionMatrix":
+            if metric_name != "MulticlassConfusionMatrix" and metric_name != "DevAccuracy":
                 self.writer.add_scalar(f'{metric_name}/train (Epoch)', metric.compute(), step)
         print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Loss: {self.loss_dict['train'][epoch]:.4f}, Time: {time.time()-time_epoch:.2f} s")
 
