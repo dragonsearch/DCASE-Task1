@@ -14,7 +14,7 @@ from sklearn.preprocessing import LabelEncoder, LabelBinarizer
 
 #REMOVE LATER TESTING PURPOSES
 from torchvision import datasets
-from torchvision.transforms import ToTensor
+from torchvision.transforms import ToTensor, v2
 from torch.utils.data import DataLoader
 
 import dataset
@@ -23,9 +23,11 @@ from dataset.cached_dataset import Cached_dataset
 from dataset.eval_dataset import Eval_dataset
 from dataset.meta_dataset import Meta_dataset
 
+from transforms import CustomTransformSpectrogram, CustomTransformAudio
+from torchaudio.transforms import Resample, Vol, TimeMasking, FrequencyMasking, TimeStretch, PitchShift
 import optuna
 import importlib
-
+from devAccuracy import DevAccuracy
 # Absolute paths
 import os
 from Trainer import Trainer, TrainerMixUp
@@ -44,12 +46,22 @@ def load_dataloaders(trial, params):
             n_fft=params['n_fft'],
             hop_length=params['hop_length'],
             n_mels=params['n_mels'],
-        )
+        ).to(params['device'])
+    data_augmentation_transforms = [
+    v2.Compose([mel_spectrogram]),
+    v2.Compose([mel_spectrogram, FrequencyMasking(freq_mask_param=10).to(params['device'])]),
+    v2.Compose([mel_spectrogram, TimeMasking(time_mask_param=10).to(params['device'])]),
+    v2.Compose([PitchShift(32050, n_steps=4).to(params['device']), mel_spectrogram]),
+    v2.Compose([Vol(gain=0.5).to(params['device']), mel_spectrogram]),
+
+    ]
+
+    data_augmentation_transform_probs = [0.6, 0.1, 0.1, 0.1, 0.1]
     if 'tensorboard' in params and params['tensorboard']:
         audiodataset = Meta_dataset(
             data_training_path + 'meta.csv', 
             data_training_path + 'audio', 
-            mel_spectrogram, params['sample_rate'],
+            data_augmentation_transforms, params['sample_rate'],
             'cuda',
             label_encoder=LabelEncoder(),
             tensorboard=True
@@ -59,18 +71,24 @@ def load_dataloaders(trial, params):
     audiodataset_train = Cached_dataset(
         data_training_path + 'evaluation_setup/fold1_train.csv',
         data_training_path + 'audio',
-        mel_spectrogram, params['sample_rate'],
+        data_augmentation_transforms,
+        data_augmentation_transform_probs,
+        params['sample_rate'],
         'cuda',
         label_encoder= label_encoder,
-        cache_transforms=params['cache_transforms']
+        cache_transforms=params['cache_transforms'],
+        #data_augmentation=params['data_augmentation']
         )
     audiodataset_val = Cached_dataset(
         data_training_path + 'evaluation_setup/fold1_evaluate.csv',
         data_training_path + 'audio',
-        mel_spectrogram, params['sample_rate'],
+        [ v2.Compose([mel_spectrogram]) ],
+        [1],
+        params['sample_rate'],
         'cuda',
         label_encoder=label_encoder,
-        cache_transforms=params['cache_transforms']
+        cache_transforms=params['cache_transforms'],
+        #data_augmentation=params['data_augmentation']
         )
     # Not using the evaluation set for now
     audio_evaluation_dataset = Eval_dataset(
@@ -139,26 +157,26 @@ def get_scheduler(optimizer, params):
     return torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=30, T_mult=1, eta_min=1e-6, last_epoch=-1)
 def objective(trial, params):
     params_copy = params.copy()
-    sample_rate = 44100
-    n_fft = int(sample_rate * 0.04)
-    hop_length = n_fft // 2
-    n_mels = 40
+    sample_rate = 32000
+    n_fft = 2048
+    hop_length = 744
+    n_mels = 128
     trial_model_params = {
-        'batch_size': 16,#trial.suggest_categorical('batch_size', [16,32, 64, 128]),
-        'name': trial.suggest_categorical('exp_name', ["OptTest"]) + str(trial.number),
+        'batch_size': 258,#trial.suggest_categorical('batch_size', [16,32, 64, 128]),
+        'name': trial.suggest_categorical('exp_name', ["TFSEPCONV_mixup_mixstyle_test_transf"]) + str(trial.number),
         'end_epoch': trial.suggest_categorical('end_epoch', [2, 3]),
         "start_epoch": 1,
-        "end_epoch": 200,
-        'lr' : trial.suggest_float('lr', 1e-4, 1e-1, log=True),
-        #'mixup_alpha': trial.suggest_categorical('mixup_alpha', [0]),
-        #'mixup_prob': trial.suggest_categorical('mixup_prob', [0]),
+        "end_epoch": 400,
+        'lr' : trial.suggest_float('lr', 1e-3, 1e-2, log=True),
+        'mixup_alpha': trial.suggest_categorical('mixup_alpha', [0.3]),
+        'mixup_prob': trial.suggest_categorical('mixup_prob', [0.5]),
         'optimizer': "Adam",
         "loss": "CrossEntropyLoss",
         'metrics': {'MulticlassAccuracy': [10,1,'macro'], 'MulticlassConfusionMatrix': [10]},
         'device': "cuda",
-        'model_file': 'model.py',
-        "model_class": "BaselineDCASECNN2",
-        "early_stopping_patience": 1000,
+        'model_file': 'model_classes.tfsepnet.py',
+        "model_class": "TfSepNet",
+        "early_stopping_patience": 200,
         "early_stopping_threshold": 0.01,
         "seed": 42,
         "train_split": 0.8,
@@ -171,7 +189,7 @@ def objective(trial, params):
         # Model parameters
         "dropout": 0.5,
         #Tensorboard
-        "tensorboard": True
+        "tensorboard": False
 
     }
     params_copy.update(trial_model_params)
@@ -183,6 +201,7 @@ def objective(trial, params):
     optimizer = get_optimizer(model, params_copy)
     criterion = get_criterion(params_copy)
     metrics = get_metrics(params_copy)
+    metrics['DevAccuracy'] = DevAccuracy(num_devices=9)
     scheduler = get_scheduler(optimizer, params_copy)
     trial_model_params = {
         'model': model,
@@ -194,10 +213,9 @@ def objective(trial, params):
         'label_encoder': label_encoder,
         'lr_scheduler': scheduler
     }
-
     params_copy.update(trial_model_params)
     if 'summary' in params_copy and params_copy['summary']:
-        torchinfo.summary(model, input_size=(params_copy['batch_size'],1, 40,51))
+        torchinfo.summary(model, input_size=(258, 1,128,44))
     if 'nessi' in params_copy and params_copy['nessi']:
         nessi.get_model_size(model,'torch', input_size=(params_copy['batch_size'],1, 64,44))
     if 'mixup_alpha' in params_copy and 'mixup_prob' in params_copy:

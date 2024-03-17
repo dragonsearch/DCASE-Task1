@@ -7,10 +7,11 @@ import torchaudio
 from sklearn.preprocessing import LabelEncoder
 from torch.utils.tensorboard import SummaryWriter
 from matplotlib import pyplot as plt
+from torchaudio.transforms import Resample, Vol, TimeMasking, FrequencyMasking, TimeStretch, PitchShift
 #import dataset.base_dataset as base_dataset
 from dataset.base_dataset import Base_dataset
 class Cached_dataset(Base_dataset):
-    def __init__(self, content_file, audio_dir, transformations , sample_rate_target, device, label_encoder, cache_transforms=True):
+    def __init__(self, content_file, audio_dir, transformations , transform_probs, sample_rate_target, device, label_encoder, cache_transforms=True):
         """
         The function initializes an object with a content file and an audio directory.
         
@@ -27,23 +28,50 @@ class Cached_dataset(Base_dataset):
         are already cached to disk. If the transformations are already cached, then this parameter should be False
         """
        
-        super().__init__(content_file, audio_dir, transformations , sample_rate_target, device, label_encoder)
+        super().__init__(content_file, audio_dir, None, sample_rate_target, device, label_encoder)
+
         if not os.path.exists('data/cache'):
             os.makedirs('data/cache')
+        for i,_ in enumerate(transformations):
+            if not os.path.exists(f'data/cache/{i}'):
+                os.makedirs(f'data/cache/{i}')
+        self.transform_sets = {i: transform_set.to(self.device)
+                              for i, transform_set in enumerate(transformations)}
+        # Calc cumulative sum of transform_probs
+        if sum(transform_probs) < 0.99 or sum(transform_probs) > 1.01:
+            raise ValueError("The sum of the transform probabilities must be 1")
+        self.transform_probs = np.cumsum(transform_probs)
+        if len(self.transform_probs) != len(transformations):
+            raise ValueError("The number of transform probabilities must be equal to the number of transformations")
         if cache_transforms:
             self._cache_transforms()
         #self._test_cached_transforms()
+            
+        
 
-    def _transform_data(self, index):
+    def _transform_data(self, index, transform):
+        
         audio_sample_path = self._get_audio_sample_path(index)
         filename = self._get_audio_sample_filename(index)
+        device = self._get_audio_recording_device(index)
         signal, sr = torchaudio.load(audio_sample_path)
+
+        # Move the signal to the correct device
         signal = signal.to(self.device)
-        #resample and mixdown if necessary (assuming dissonance in the dataset)
+
+        # Resample and mixdown if necessary (assuming dissonance in the dataset)
         signal = self._resample_if_needed(signal, sr)
         signal = self._mix_down_if_needed(signal)
-        signal = self.transformations(signal)
-        return signal, sr, filename
+
+        # Apply the Compose transformations to the signal
+        signal_transformed = transform(signal)
+
+        # Move the transformed signal back to the original device
+        signal_transformed = signal_transformed.to(self.device)
+
+        return signal_transformed, sr, filename, device
+
+            
 
     def _test_cached_transforms(self):
         """
@@ -63,6 +91,7 @@ class Cached_dataset(Base_dataset):
             signal = self._resample_if_needed(signal, sr)
             signal = self._mix_down_if_needed(signal)
             signal = self.transformations(signal)
+            
             cached_signal = torch.load(f'data/cache/{filename}.pt')
             assert torch.equal(signal, cached_signal)
         
@@ -77,9 +106,10 @@ class Cached_dataset(Base_dataset):
         :param sr: The `sr` parameter is the sample rate of the audio signal
         :return: None
         """
-        for i in range(0, len(self.content)):
-            signal, sr, filename = self._transform_data(i)
-            torch.save(signal, f'data/cache/{filename}.pt')
+        for i, transform_set in self.transform_sets.items():
+                for j in range(0, len(self.content)):
+                    signal, sr, filename, device = self._transform_data(j, transform_set)
+                    torch.save(signal, f'data/cache/{i}/{filename}.pt')
         print("Transformations are cached to disk")
     
     def __getitem__(self, index):
@@ -93,6 +123,11 @@ class Cached_dataset(Base_dataset):
         """
         filename = self._get_audio_sample_filename(index)
         label = self._get_audio_sample_label(index)
-        signal = torch.load(f'data/cache/{filename}.pt')
-        
-        return signal, label, filename
+        device = self._get_audio_recording_device(index)
+        rand = torch.rand(1)
+        for i, transform_set in self.transform_sets.items():
+            if  rand <= self.transform_probs[i]+1e-8:
+                signal = torch.load(f'data/cache/{i}/{filename}.pt')
+                return signal, label, filename, device
+
+
