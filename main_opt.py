@@ -71,10 +71,8 @@ def load_dataloaders(trial, params):
     audiodataset_train = Cached_dataset(
         data_training_path + 'evaluation_setup/fold1_train.csv',
         data_training_path + 'audio',
-        #data_augmentation_transforms,
-        #data_augmentation_transform_probs,
-        [ v2.Compose([mel_spectrogram]) ],
-        [1],
+        data_augmentation_transforms,
+        data_augmentation_transform_probs,
         params['sample_rate'],
         'cuda',
         label_encoder= label_encoder,
