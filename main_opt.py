@@ -27,7 +27,7 @@ from transforms import CustomTransformSpectrogram, CustomTransformAudio
 from torchaudio.transforms import Resample, Vol, TimeMasking, FrequencyMasking, TimeStretch, PitchShift
 import optuna
 import importlib
-
+from devAccuracy import DevAccuracy
 # Absolute paths
 import os
 from Trainer import Trainer, TrainerMixUp
@@ -71,8 +71,10 @@ def load_dataloaders(trial, params):
     audiodataset_train = Cached_dataset(
         data_training_path + 'evaluation_setup/fold1_train.csv',
         data_training_path + 'audio',
-        data_augmentation_transforms,
-        data_augmentation_transform_probs,
+        #data_augmentation_transforms,
+        #data_augmentation_transform_probs,
+        [ v2.Compose([mel_spectrogram]) ],
+        [1],
         params['sample_rate'],
         'cuda',
         label_encoder= label_encoder,
@@ -165,7 +167,7 @@ def objective(trial, params):
         'batch_size': 258,#trial.suggest_categorical('batch_size', [16,32, 64, 128]),
         'name': trial.suggest_categorical('exp_name', ["TFSEPCONV_mixup_mixstyle_test_transf"]) + str(trial.number),
         'end_epoch': trial.suggest_categorical('end_epoch', [2, 3]),
-        "start_epoch": 166,
+        "start_epoch": 1,
         "end_epoch": 400,
         'lr' : trial.suggest_float('lr', 1e-3, 1e-2, log=True),
         'mixup_alpha': trial.suggest_categorical('mixup_alpha', [0.3]),
@@ -201,6 +203,7 @@ def objective(trial, params):
     optimizer = get_optimizer(model, params_copy)
     criterion = get_criterion(params_copy)
     metrics = get_metrics(params_copy)
+    metrics['DevAccuracy'] = DevAccuracy(num_devices=9)
     scheduler = get_scheduler(optimizer, params_copy)
     trial_model_params = {
         'model': model,
