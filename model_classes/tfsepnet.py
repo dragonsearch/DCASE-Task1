@@ -22,9 +22,9 @@ class TfSepNet(torch.nn.Module):
         while isinstance(cfg[i], str):
             i -= 1
         self.classifier = nn.Conv2d(round(cfg[i] * self.width), 10, 1, bias=True)
-        self.beta = torch.distributions.Beta(0.1, 0.1)
+        self.alpha = 0.3
+        self.beta = torch.distributions.Beta(self.alpha, self.alpha)
         self.eps = 1e-6
-        self.alpha = 0.1
         self.p = 0.5
 
     def freq_mixstyle(self,x):
@@ -101,7 +101,7 @@ class TfSepNet(torch.nn.Module):
                 torch.nn.init.constant_(l.temp_pw_conv.conv.bias, 0)
 
     def forward(self, x):
-        
+        x = self.freq_mixstyle(x)
         x = self.feature(x)
         y = self.classifier(x)
         y = y.mean((-1, -2), keepdim=False)
