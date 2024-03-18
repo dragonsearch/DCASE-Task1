@@ -250,48 +250,43 @@ class Trainer():
             self.compute_metrics(epoch, val=True)
 
             print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Val Loss: {self.loss_dict['val'][epoch]:.4f}, Time: {time.time()-time_step:.2f} s")  
-
-
-            # 0-9- > classes
-
-            #Display a big confusion matrix
-            fig, ax = plt.subplots(figsize=(18,18))
-            conf_matrix = self.metrics_dict['val']['MulticlassConfusionMatrix'][epoch].cpu().numpy()
-            # Confusion matrix inverse transform labels
-            class_labels = self.label_encoder.inverse_transform(np.arange(conf_matrix.shape[0]))
-            confusion_display = ConfusionMatrixDisplay(conf_matrix, display_labels=class_labels)
-            confusion_image = confusion_display.plot(cmap=plt.cm.Blues, ax=ax, values_format=".2f").figure_
-            confusion_image_bytes = self.plot_to_image(confusion_image)
             
             #Print device accuracy
             if 'DevAccuracy' in self.metrics_dict['val']:
-                fig, ax = plt.subplots(figsize=(18,18))
-                device_accuracy = self.metrics_dict['val']['DevAccuracy'][epoch].cpu().numpy()
-                ax.bar(np.arange(len(device_accuracy)), device_accuracy)
-                ax.set_xticks(np.arange(len(device_accuracy)))
-                ax.set_xticklabels(self.val_loader.dataset.device_encoder.inverse_transform(np.arange(len(device_accuracy))))
-                device_accuracy_image = ax.figure
-                device_accuracy_image_bytes = self.plot_to_image(device_accuracy_image)
-                self.writer.add_image(f"Device Accuracy/Epoch{epoch}", device_accuracy_image_bytes, epoch)
-                print(self.metrics_dict['val']['DevAccuracy'][epoch].cpu().numpy())
-
-            #Add to tensorboard
-            self.writer.add_image(f"Confusion Matrix/Epoch{epoch}", confusion_image_bytes, epoch)
-           
-
+                self.plot_dev_accuracy(epoch)
             #Plots for every epoch
-            self.writer.add_scalar('Loss/Val (Epoch)', loss.item(), step)
-            for metric_name, metric in self.metrics.items():
-                if metric_name != "MulticlassConfusionMatrix" and metric_name != "DevAccuracy":
-                    self.writer.add_scalar(f'{metric_name}/Val (Epoch)', metric.compute(), step)
-
+            self.scalars_to_writer(loss, "val (Epoch)", step)
             # Early stopping
             if self.early_stopping(epoch):
                 raise EarlyStoppingException()
-            
         self.model.train()
         print( "Validation ended")
-        
+    
+    def plot_dev_accuracy(self, epoch):
+
+        fig, ax = plt.subplots(figsize=(18,18))
+        device_accuracy = self.metrics_dict['val']['DevAccuracy'][epoch].cpu().numpy()
+        ax.bar(np.arange(len(device_accuracy)), device_accuracy)
+        ax.set_xticks(np.arange(len(device_accuracy)))
+        ax.set_xticklabels(self.val_loader.dataset.device_encoder.inverse_transform(np.arange(len(device_accuracy))))
+        device_accuracy_image = ax.figure
+        device_accuracy_image_bytes = self.plot_to_image(device_accuracy_image)
+        self.writer.add_image(f"Device Accuracy/Epoch{epoch}", device_accuracy_image_bytes, epoch)
+        print(self.metrics_dict['val']['DevAccuracy'][epoch].cpu().numpy())
+
+    def confusion_matrix(self, epoch):
+        # 0-9- > classes
+        #Display a big confusion matrix
+        fig, ax = plt.subplots(figsize=(18,18))
+        conf_matrix = self.metrics_dict['val']['MulticlassConfusionMatrix'][epoch].cpu().numpy()
+        # Confusion matrix inverse transform labels
+        class_labels = self.label_encoder.inverse_transform(np.arange(conf_matrix.shape[0]))
+        confusion_display = ConfusionMatrixDisplay(conf_matrix, display_labels=class_labels)
+        confusion_image = confusion_display.plot(cmap=plt.cm.Blues, ax=ax, values_format=".2f").figure_
+        confusion_image_bytes = self.plot_to_image(confusion_image)
+        #Add to tensorboard
+        self.writer.add_image(f"Confusion Matrix/Epoch{epoch}", confusion_image_bytes, epoch)
+           
     def val_step(self, samples, labels, epoch):
         with torch.no_grad():
             # Forward pass
@@ -350,89 +345,6 @@ class Trainer():
             self.save_model(ep)
         print(f'Finished Training in {time.time()-time_start:.2f} s')
         return self.loss_dict, self.metrics_dict
-    
-class TrainerMixUp(Trainer):
-    def __init__(self, params) -> None:
-        super().__init__(params)
-        self.mixup_alpha = params['mixup_alpha']
-        self.mixup_prob = params['mixup_prob'] if 'mixup_prob' in params else 0
-    
-    def mixUpCriterion(self, y_pred, y_a, y_b, lam):
-        # There are 2 ways of doing this. One for onehot encoded labels and one 
-        # for non onehot encoded labels.
-        # For onehot encoded labels (as in original paper):
-        # loss = lam * self.criterion(y_pred, y_true) + (1 - lam) * self.criterion(y_pred, y_true)
-        # For non onehot encoded labels (as in the original implementation):
-        # loss = lam * self.criterion(y_pred, y_a) + (1 - lam) * self.criterion(y_pred, y_b)
-        # Notice lerp makes us swap the order of the parameters
-        loss = torch.lerp(self.criterion(y_pred, y_b), self.criterion(y_pred, y_a), lam)
-
-        return loss
-    
-    def train_step(self, samples, labels_a, labels_b, lam):
-        # Forward pass
-        self.optimizer.zero_grad()
-        y_pred = self.model(samples)
-        loss = self.mixUpCriterion(y_pred, labels_a, labels_b, lam)
-        # Backward and optimize
-        loss.backward()
-        self.optimizer.step()
-        return y_pred, loss
-    
-    def mixup_data(self, x, y):
-        # Similar to the original implementation  
-        # Remember giving alpha = 0 is the same as not using mixup
-        if self.mixup_alpha > 0:
-            lam =  np.random.beta(self.mixup_alpha, self.mixup_alpha)
-        else:
-            lam = 1
-        if self.mixup_prob > 0:
-            if np.random.rand() > self.mixup_prob:
-                lam = 1
-        index = torch.randperm(x.size(0)).to(self.device)
-        #mixed_x = lam * x + (1 - lam) * x[index, :]
-        mixed_x = torch.lerp(x[index, :], x, lam)
-        y_a, y_b = y, y[index]
-        return mixed_x, y_a, y_b, lam
-    
-    def train_epoch(self,epoch):
-        """
-        Trains the model for each epoch
-        """
-        time_epoch = time.time() 
-        print(f"Epoch {epoch}/{self.num_epochs}")
-
-        for i, (samples, labels, *rest) in enumerate(self.train_loader):
-            samples = samples.to(self.device)
-            labels = labels.to(self.device)
-            samples, labels_a, labels_b, lam = self.mixup_data(samples, labels)
-            y_pred,loss = self.train_step(samples, labels_a, labels_b , lam)
-            self.lr_scheduler.step(epoch + i / self.n_total_steps_train)
-            # Add loss and metrics
-            self.loss_dict["train"][epoch] += loss.item()
-            devices = rest[1].to(self.device)
-            self.add_to_metric(y_pred, labels)
-            if 'DevAccuracy' in self.metrics:
-                self.add_to_dev_accuracy(y_pred, labels, devices)
-            #Add scalars to a Tensorboard 
-            step = (epoch - 1) * len(self.train_loader) + i
-            self.writer.add_scalar('Loss/train', loss.item(), step)
-            for metric_name, metric in self.metrics.items():
-                if metric_name != "MulticlassConfusionMatrix" and metric_name != "DevAccuracy":
-                    self.writer.add_scalar(f'{metric_name}/train', metric.compute(), step)
-            if (i+1) % 100 == 0:
-                print (f'Step [{i+1}/{self.n_total_steps_train}], Loss: {loss.item():.4f}, Time: {time.time()-time_epoch:.2f} s')
-        # Compute metrics
-        self.compute_metrics(epoch, val=False)
-
-        # Compute loss
-        self.loss_dict["train"][epoch] /= self.n_total_steps_train
-        #Add scalars to a Tensorboard for each epoch
-        self.writer.add_scalar('Loss/train (Epoch)', loss.item(), step)
-        for metric_name, metric in self.metrics.items():
-            if metric_name != "MulticlassConfusionMatrix" and metric_name != "DevAccuracy":
-                self.writer.add_scalar(f'{metric_name}/train (Epoch)', metric.compute(), step)
-        print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Loss: {self.loss_dict['train'][epoch]:.4f}, Time: {time.time()-time_epoch:.2f} s")
 
 class EarlyStoppingException(Exception):
     # Exception raised for early stopping
@@ -440,4 +352,3 @@ class EarlyStoppingException(Exception):
     def __init__(self, message="Early stopping"):
         self.message = message
         super().__init__(self.message)
-    
