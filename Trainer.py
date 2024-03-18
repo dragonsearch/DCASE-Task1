@@ -177,13 +177,8 @@ class Trainer():
 
             #Add scalars to a Tensorboard 
             step = (epoch - 1) * len(self.train_loader) + i
-            self.writer.add_scalar('Loss/train', loss.item(), step)
-            for metric_name, metric in self.metrics.items():
-                if metric_name != "MulticlassConfusionMatrix" and metric_name != "DevAccuracy":
-                    self.writer.add_scalar(f'{metric_name}/train', metric.compute(), step)
-                
-            
-             
+            self.scalars_to_writer(loss, "train (Step)", step)
+
             if (i+1) % 100 == 0:
                 print (f'Step [{i+1}/{self.n_total_steps_train}], Loss: {loss.item():.4f}, Time: {time.time()-time_epoch:.2f} s')
         
@@ -197,10 +192,13 @@ class Trainer():
         print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Loss: {self.loss_dict['train'][epoch]:.4f}, Time: {time.time()-time_epoch:.2f} s")
 
         #Add scalars to a Tensorboard for each epoch
-        self.writer.add_scalar('Loss/train (Epoch)', loss.item(), step)
+        self.scalars_to_writer(loss, "train (Epoch)", step)
+    
+    def scalars_to_writer(self, loss, name, step):
+        self.writer.add_scalar(f'Loss/{name}', loss.item(), step)
         for metric_name, metric in self.metrics.items():
             if metric_name != "MulticlassConfusionMatrix" and metric_name != "DevAccuracy":
-                self.writer.add_scalar(f'{metric_name}/train (Epoch)', metric.compute(), step)
+                self.writer.add_scalar(f'{metric_name}/{name}', metric.compute(), step)
 
     def train_step(self, samples, labels):  
         """
@@ -241,10 +239,7 @@ class Trainer():
                     self.add_to_dev_accuracy(y_pred, labels, devices)
                 #Add scalars to Tensorboard
                 step = (epoch - 1) * len(self.val_loader) + i
-                self.writer.add_scalar('Loss/Val', loss.item(), step)
-                for metric_name, metric in self.metrics.items():
-                    if metric_name != "MulticlassConfusionMatrix" and metric_name != "DevAccuracy":
-                        self.writer.add_scalar(f'{metric_name}/Val', metric.compute(), step)
+                self.scalars_to_writer(loss, "val (Step)", step)
                 if (i+1) % 100 == 0:
                     print (f'Step [{i+1}/{self.n_total_steps_val}], Loss: {loss.item():.4f}, Time: {time.time()-time_step:.2f} s')
 
