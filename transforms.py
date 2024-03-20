@@ -41,6 +41,26 @@ class CustomTransformSpectrogram(torch.nn.Module):
             """
         return signal
 
+class TimeShiftRange(torch.nn.Module):
+    def __init__(self, sample_rate, max_shift):
+        super().__init__()
+        self.sample_rate = sample_rate
+        self.max_shift = max_shift
+
+    def forward(self, signal):
+        shift = int(np.random.uniform(-self.max_shift, self.max_shift) * self.sample_rate)
+        return torch.roll(signal, shifts=shift, dims=1)
+
+class TimeShiftValue(torch.nn.Module):
+    def __init__(self, sample_rate, shift):
+        super().__init__()
+        self.sample_rate = sample_rate
+        self.shift = shift
+
+    def forward(self, signal):
+        num_shifts = int(self.shift * self.sample_rate)
+        return torch.roll(signal, shifts=num_shifts, dims=1) 
+
 # Adjust n_fft and hop_length to be compatible with your signal's length
     """
 mel_spectrogram = MelSpectrogram(
