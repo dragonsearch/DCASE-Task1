@@ -254,6 +254,9 @@ class Trainer():
             #Print device accuracy
             if 'DevAccuracy' in self.metrics_dict['val']:
                 self.plot_dev_accuracy(epoch)
+            #Print confusion matrix
+            if 'MulticlassConfusionMatrix' in self.metrics_dict['val']:
+                self.confusion_matrix(epoch)
             #Plots for every epoch
             self.scalars_to_writer(loss, "val (Epoch)", step)
             # Early stopping
