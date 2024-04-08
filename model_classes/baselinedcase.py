@@ -28,6 +28,7 @@ class BaselineDCASECNN(nn.Module):
         self.dense_2 = nn.Linear(100, 10)
 
     def forward(self, x):
+        print(x.shape)
         x = self.conv2d_1(x)
         x = self.batch_norm_1(x)
         x = self.activation_1(x)

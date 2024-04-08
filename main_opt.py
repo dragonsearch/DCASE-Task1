@@ -157,15 +157,15 @@ def get_scheduler(optimizer, params):
     return torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=30, T_mult=1, eta_min=1e-6, last_epoch=-1)
 def objective(trial, params):
     params_copy = params.copy()
-    sample_rate = 32000
-    n_fft = 2048
-    hop_length = 744
-    n_mels = 128
+    sample_rate = 44100
+    n_fft = int(sample_rate * 0.04)
+    hop_length = n_fft // 2
+    n_mels = 40
     trial_model_params = {
         'batch_size': 258,#trial.suggest_categorical('batch_size', [16,32, 64, 128]),
         'name': trial.suggest_categorical('exp_name', ["TFSEPCONV_mixup_mixstyle_test_transf"]) + str(trial.number),
         'end_epoch': trial.suggest_categorical('end_epoch', [2, 3]),
-        "start_epoch": 166,
+        "start_epoch": 1,
         "end_epoch": 400,
         'lr' : trial.suggest_float('lr', 1e-3, 1e-2, log=True),
         'mixup_alpha': trial.suggest_categorical('mixup_alpha', [0.3]),
@@ -174,8 +174,8 @@ def objective(trial, params):
         "loss": "CrossEntropyLoss",
         'metrics': {'MulticlassAccuracy': [10,1,'macro'], 'MulticlassConfusionMatrix': [10]},
         'device': "cuda",
-        'model_file': 'model_classes.tfsepnet.py',
-        "model_class": "TfSepNet",
+        'model_file': 'model_classes.baselinedcase.py',
+        "model_class": "BaselineDCASECNN",
         "early_stopping_patience": 200,
         "early_stopping_threshold": 0.01,
         "seed": 42,

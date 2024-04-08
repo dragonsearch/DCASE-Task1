@@ -7,6 +7,7 @@ import torch
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.signal import convolve
 
 class CustomTransformAudio(torch.nn.Module):
     def forward(self, signal):
@@ -87,21 +88,31 @@ class DIRAugmentation(torch.nn.Module):
         return reconstructed_waveform
 
 class IRAugmentation(torch.nn.Module):
-    def __init__(self, impulse_response):
+    def __init__(self):
         super(IRAugmentation, self).__init__()
-        self.impulse_response = impulse_response
+        
 
-    def forward(self, waveform):
-        impulse_response = self.impulse_response
+    def forward(self, signal):
+        dirs = os.listdir('dirs')
+        index = np.random.randint(0, len(dirs))
+        dir, _ = torchaudio.load(f'dirs/{dirs[index]}')
+        #Modify dirs to match shape [1,44100]
+        if dir.shape[1] < 44100:
+            dirs2 = torch.cat((dir, torch.zeros(1,44100-dir.shape[1])),1)
+
+        x2 = convolve(signal, dirs2, mode='full')
+        signal = torch.tensor(x2[:, :signal.shape[1]])
+
+        return signal
         #waveform [1,44100]
         #[1,1,44100]
 
         # Perform 1D convolution
         
-        convolved_waveform = F.conv1d(waveform.unsqueeze(0), impulse_response.unsqueeze(0), padding='same')
+        #convolved_waveform = F.conv1d(waveform.unsqueeze(0), impulse_response.unsqueeze(0), padding='same')
         #convolved_waveform = convolved_waveform[:, :convolved_waveform.shape[1]]
 
-        return convolved_waveform.squeeze(0)
+        #return convolved_waveform.squeeze(0)
 
 
 # Adjust n_fft and hop_length to be compatible with your signal's length
