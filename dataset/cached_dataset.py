@@ -65,10 +65,10 @@ class Cached_dataset(Base_dataset):
 
         # Apply the Compose transformations to the signal
         signal_transformed = transform(signal)
-
+        del signal
         # Move the transformed signal back to the original device
-        signal_transformed = signal_transformed.to(self.device)
-
+        #signal_transformed = signal_transformed.to('cpu')
+        
         return signal_transformed, sr, filename, device
 
             
@@ -110,6 +110,7 @@ class Cached_dataset(Base_dataset):
                 for j in range(0, len(self.content)):
                     signal, sr, filename, device = self._transform_data(j, transform_set)
                     torch.save(signal, f'data/cache/{i}/{filename}.pt')
+                    del signal
         print("Transformations are cached to disk")
     
     def __getitem__(self, index):
