@@ -165,23 +165,89 @@ class TimeShiftValue(torch.nn.Module):
         num_shifts = int(self.shift * self.sample_rate)
         return torch.roll(signal, shifts=num_shifts, dims=1) 
 
-# Adjust n_fft and hop_length to be compatible with your signal's length
-    """
-mel_spectrogram = MelSpectrogram(
-    sample_rate=44100,
-    n_fft=2048,  # Adjust this value based on your signal
-    hop_length=512,  # Adjust this value based on your signal
-    n_mels=40,
-)
+class TimeShiftSpectrogram(torch.nn.Module):
+    def __init__(self, sample_rate, shift, metadata, mel_spec):
+        super().__init__()
+        self.sample_rate = sample_rate
+        self.shift = shift
+        self.n_shifts = [round(x * 0.1,2) for x in range(1, 10)]
+        self.distribution = torch.distributions.uniform.Uniform(1,10)
+        self.mel_spec = mel_spec
+        self.metadata = metadata
+        self.grouped_filenames = self.metadata.groupby(self.metadata['filename'].apply(self.get_groups))
+        self.transformed = False
+        if not os.path.exists('data/cache/shifted'):
+            os.makedirs('data/cache/shifted')
+        for n_shift in self.n_shifts:
+            if not os.path.exists(f'data/cache/shifted/{n_shift}/audio'):
+                os.makedirs(f'data/cache/shifted/{n_shift}/audio')
+        self.folder = 'data/cache/shifted'
 
-custom_transform = customTransformSpectrogram()
-signal, sr = torchaudio.load("data/TAU-urban-acoustic-scenes-2022-mobile-development/audio/street_traffic-prague-1006-41673-0-s5.wav")
-signal = mel_spectrogram(signal)
+    def transform_all_clips(self):
+        if self.transformed:
+            return
+        for identifier, group in self.grouped_filenames['filename']:
+            torch.cuda.empty_cache() ## EXPERIMENTAL
+            signal = self.join_clips(group)
+            signal = signal.to('cuda')
+            # Shift on 0.1, 0.2, 0.3, 0.4, 0.5
+            #shift = int(torch.distributions.uniform(0,1) * self.sample_rate)
+            shifts = [int(shift * self.sample_rate) for shift in self.n_shifts]
+            for shift_id,shift in zip(self.n_shifts, shifts):
+                signal_shifted = torch.roll(signal, shifts=shift, dims=1)
+                # Split the signal into sample rate clips
+                for i in range(0, len(self.n_shifts)+1):
+                    # Apply mel spectrogram
+                    mel_spec = self.mel_spec(signal_shifted[:, i:i+self.sample_rate])
+                    # Save the mel spectrogram
+                    # Switch the filename identifier
+                    identifier_copy = identifier.split('-')
+                    dev = identifier_copy[-1:][0]
+                    identifier_copy = '-'.join(identifier_copy[:-1])
+                    filename = f'data/cache/shifted/{shift_id}/{identifier_copy}-{i}-{dev}.wav.pt'
+                    torch.save(mel_spec, filename)
+        self.transformed = True
 
-# Show the original mel spectrogram and the modified mel spectrogram side by side
-plt.subplot(1, 2, 1)
-plt.imshow(signal.cpu().detach().numpy()[0])
-plt.subplot(1, 2, 2)
-plt.imshow(custom_transform(signal).cpu().detach().numpy()[0])
-plt.show()
+                
+    def join_clips(self, group):
+        # Load the filenames and join the clips
+        signals = []
+        for filename in group:
+            signal, sr = torchaudio.load('data/TAU-urban-acoustic-scenes-2022-mobile-development/' + filename)
+            signals.append(signal)
+        # Join the signals
+        signal = torch.cat(signals, dim=1)
+        return signal
+    def sample_random(self):
+        n = round(int(self.distribution.sample()) * self.shift,2)
+        path = f'data/cache/shifted/{n}/audio/'
+        return path
+    def get_groups(self, filename):
+        #Remove the extension
+        filename = filename[:-4]
+        # Save the device (separated by -)
+        dev = filename.split('-')[-1:]
+        filename_switched = filename.split('-')
+        # Switch up the last two parts of the filename
+        filename = filename_switched[:-2] + filename_switched[-1:]
+        # Join the remaining parts
+        filename = '-'.join(filename)
+        return filename 
+    def forward(self, signal):
+        # Shift the signal
+        if self.transformed:
+            return signal
+        else:
+            self.transform_all_clips()
+            return signal
+
+
+"""
+#Create mel_spectrogram
+mel_spec = MelSpectrogram(sample_rate=44100, n_fft=2048, win_length=2048, hop_length=1024, n_mels=128)
+#Metadata
+import pandas as pd
+metadata = pd.read_csv('data/TAU-urban-acoustic-scenes-2022-mobile-development/meta.csv', sep='\t')
+t = TimeShiftSpectrogram(44100, 0.1, metadata, mel_spec).to('cuda')
+#t.transform_all_clips()
 """
