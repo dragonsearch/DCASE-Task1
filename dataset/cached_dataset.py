@@ -139,7 +139,13 @@ class Cached_dataset(Base_dataset):
         rand = torch.rand(1)
         for i, transform_set in self.transform_sets.items():
             if  rand <= self.transform_probs[i]+1e-8:
-                signal = torch.load(f'data/cache/{i}/{filename}.pt')
-                return signal, label, filename, device
+                if hasattr(transform_set.transforms[0], 'sample_random'):
+                    path = transform_set.transforms[0].sample_random()
+                    signal = torch.load(path+filename+'.pt')
+                    return signal, label, filename, device, city
+                else:
+                    path = f'data/cache/{i}/{filename}.pt'
+                    signal = torch.load(path)
+                    return signal, label, filename, device, city
 
 
