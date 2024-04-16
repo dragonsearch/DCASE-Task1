@@ -9,13 +9,13 @@ import nessi
 
 import optuna
 from devAccuracy import DevAccuracy
+from cityAccuracy import CityAccuracy
 # Absolute paths
 import os
 from Trainer import Trainer
 from trainer_mixup import TrainerMixUp
 from hparams import first_hparams, get_model, get_optimizer, get_criterion, get_metrics, get_scheduler
 from dataset.dataloaders import load_dataloaders
-
 def objective(trial, params):
     params_copy = params.copy()
     trial_model_params = first_hparams(trial)
@@ -29,6 +29,7 @@ def objective(trial, params):
     criterion = get_criterion(params_copy)
     metrics = get_metrics(params_copy)
     metrics['DevAccuracy'] = DevAccuracy(num_devices=9)
+    metrics['CityAccuracy'] = CityAccuracy(num_cities=10)
     scheduler = get_scheduler(optimizer, params_copy)
     trial_model_params = {
         'model': model,
@@ -66,7 +67,7 @@ if do_training:
     params = {
         'abspath': os.path.abspath('.'),
         #"eval_file" : os.path.abspath("resnet18/ckpt/model_resnet18_1.pth"),
-        'summary': False,
+        'summary': True,
         'nessi': False
     }
     #Optuna study
