@@ -36,6 +36,9 @@ class Base_dataset(Dataset):
         self.metadata = pd.read_csv('data/TAU-urban-acoustic-scenes-2022-mobile-development/meta.csv', sep='\t')
         dev_enc = LabelEncoder()
         self.device_encoder = dev_enc.fit(self.metadata.iloc[:, 3])
+        city_enc = LabelEncoder()
+        # Remove the last part separated by - on the columns
+        self.city_encoder = city_enc.fit(self.metadata.iloc[:, 2].str.split('-').str[0])
         # Transform metadata to encoded labels
         self.metadata.iloc[:, 3] = self.device_encoder.transform(self.metadata.iloc[:, 3])
         if tensorboard:
