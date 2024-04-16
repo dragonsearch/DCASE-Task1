@@ -5,6 +5,21 @@ import torch
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from torch import nn
+class log_mel(torch.nn.Module):
+    def __init__(self,offset=1e-6, mel_spec=None):
+        super().__init__()
+        self.offset = offset
+        self.mel_spec = mel_spec
+        if self.mel_spec is None:
+            raise ValueError("Mel spectrogram is required for log_mel transform")
+
+    def forward(self, signal):
+        mel_spec = self.mel_spec(signal)
+        #mel_spec = AmplitudeToDB()(mel_spec)
+        mel_spec = torch.log(mel_spec + self.offset)
+        return mel_spec
+    
 
 class CustomTransformAudio(torch.nn.Module):
     def forward(self, signal):
