@@ -143,7 +143,7 @@ class Trainer():
         y_pred = torch.as_tensor(y_pred, dtype=torch.float64)
 
         for metric in self.metrics:
-            if metric != "DevAccuracy":
+            if metric != "DevAccuracy" and metric != "CityAccuracy":
                 self.metrics[metric].update(y_pred, y_true)
                 
 
@@ -174,7 +174,9 @@ class Trainer():
             self.add_to_metric(y_pred, labels)
             if 'DevAccuracy' in self.metrics:
                 self.add_to_dev_accuracy(y_pred, labels, devices)
-
+            if 'CityAccuracy' in self.metrics:
+                cities = rest[2].to(self.device)
+                self.add_to_city_accuracy(y_pred, labels, cities)
             #Add scalars to a Tensorboard 
             step = (epoch - 1) * len(self.train_loader) + i
             self.scalars_to_writer(loss, "train (Step)", step)
@@ -197,7 +199,7 @@ class Trainer():
     def scalars_to_writer(self, loss, name, step):
         self.writer.add_scalar(f'Loss/{name}', loss.item(), step)
         for metric_name, metric in self.metrics.items():
-            if metric_name != "MulticlassConfusionMatrix" and metric_name != "DevAccuracy":
+            if metric_name != "MulticlassConfusionMatrix" and metric_name != "DevAccuracy" and metric_name != "CityAccuracy":
                 self.writer.add_scalar(f'{metric_name}/{name}', metric.compute(), step)
 
     def train_step(self, samples, labels):  
@@ -237,6 +239,9 @@ class Trainer():
                 self.add_to_metric(y_pred, labels)
                 if 'DevAccuracy' in self.metrics:
                     self.add_to_dev_accuracy(y_pred, labels, devices)
+                if 'CityAccuracy' in self.metrics:
+                    cities = rest[2].to(self.device)
+                    self.add_to_city_accuracy(y_pred, labels, cities)
                 #Add scalars to Tensorboard
                 step = (epoch - 1) * len(self.val_loader) + i
                 self.scalars_to_writer(loss, "val (Step)", step)
@@ -254,6 +259,11 @@ class Trainer():
             #Print device accuracy
             if 'DevAccuracy' in self.metrics_dict['val']:
                 self.plot_dev_accuracy(epoch)
+            if 'MulticlassConfusionMatrix' in self.metrics_dict['val']:
+                self.confusion_matrix(epoch)
+            if 'CityAccuracy' in self.metrics_dict['val']:
+                self.plot_city_accuracy(epoch)  
+                print(self.metrics_dict['val']['CityAccuracy'][epoch].cpu().numpy())
             #Plots for every epoch
             self.scalars_to_writer(loss, "val (Epoch)", step)
             # Early stopping
@@ -262,6 +272,24 @@ class Trainer():
         self.model.train()
         print( "Validation ended")
     
+    def add_to_city_accuracy(self, y_pred, y_true, cities):
+        """
+        Adds the predictions and the labels to the metrics
+        """
+        self.metrics['CityAccuracy'].update(y_pred, y_true, cities)
+
+    def plot_city_accuracy(self, epoch):
+        fig, ax = plt.subplots(figsize=(18,18))
+        city_accuracy = self.metrics_dict['val']['CityAccuracy'][epoch].cpu().numpy()
+        ax.bar(np.arange(len(city_accuracy)), city_accuracy)
+        ax.set_xticks(np.arange(len(city_accuracy)))
+        ax.set_xticklabels(self.val_loader.dataset.city_encoder.inverse_transform(np.arange(len(city_accuracy))))
+        city_accuracy_image = ax.figure
+        city_accuracy_image_bytes = self.plot_to_image(city_accuracy_image)
+        self.writer.add_image(f"City Accuracy/Epoch{epoch}", city_accuracy_image_bytes, epoch)
+        plt.close()
+        print(self.metrics_dict['val']['CityAccuracy'][epoch].cpu().numpy())
+
     def plot_dev_accuracy(self, epoch):
 
         fig, ax = plt.subplots(figsize=(18,18))
@@ -272,6 +300,7 @@ class Trainer():
         device_accuracy_image = ax.figure
         device_accuracy_image_bytes = self.plot_to_image(device_accuracy_image)
         self.writer.add_image(f"Device Accuracy/Epoch{epoch}", device_accuracy_image_bytes, epoch)
+        plt.close()
         print(self.metrics_dict['val']['DevAccuracy'][epoch].cpu().numpy())
 
     def confusion_matrix(self, epoch):
@@ -286,7 +315,7 @@ class Trainer():
         confusion_image_bytes = self.plot_to_image(confusion_image)
         #Add to tensorboard
         self.writer.add_image(f"Confusion Matrix/Epoch{epoch}", confusion_image_bytes, epoch)
-           
+        plt.close()
     def val_step(self, samples, labels, epoch):
         with torch.no_grad():
             # Forward pass
