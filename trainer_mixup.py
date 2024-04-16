@@ -85,6 +85,10 @@ class TrainerMixUp(Trainer):
             self.add_to_metric(y_pred, labels)
             if 'DevAccuracy' in self.metrics:
                 self.add_to_dev_accuracy(y_pred, labels, devices)
+            if 'CityAccuracy' in self.metrics:
+                cities = rest[2].to(self.device)
+                self.add_to_city_accuracy(y_pred, labels, cities)
+
             #Add scalars to a Tensorboard 
             step = (epoch - 1) * len(self.train_loader) + i
             self.scalars_to_writer(loss, "train (Step)", step)

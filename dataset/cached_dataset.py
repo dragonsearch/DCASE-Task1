@@ -85,10 +85,10 @@ class Cached_dataset(Base_dataset):
 
         # Apply the Compose transformations to the signal
         signal_transformed = transform(signal)
-
+        del signal
         # Move the transformed signal back to the original device
-        signal_transformed = signal_transformed.to(self.device)
-
+        #signal_transformed = signal_transformed.to('cpu')
+        
         return signal_transformed, sr, filename, device
 
             
@@ -130,8 +130,18 @@ class Cached_dataset(Base_dataset):
                 for j in range(0, len(self.content)):
                     signal, sr, filename, device = self._transform_data(j, transform_set)
                     torch.save(signal, f'data/cache/{i}/{filename}.pt')
+                    del signal
         print("Transformations are cached to disk")
-    
+    def _get_audio_sample_city(self, index):
+        """
+        The function `_get_audio_sample_city` is used to get the city of the audio sample at the specified index.
+        
+        :param index: The `index` parameter is the index of the audio sample
+        :return: The city of the audio sample at the specified index
+        """
+        # From metadata and identifier
+        city = self.metadata['identifier'][index].split('-')[0]
+        return city
     def __getitem__(self, index):
         """
         The `__getitem__` function returns the audio signal and label for a given index in a dataset.
@@ -144,10 +154,18 @@ class Cached_dataset(Base_dataset):
         filename = self._get_audio_sample_filename(index)
         label = self._get_audio_sample_label(index)
         device = self._get_audio_recording_device(index)
+        city = self._get_audio_sample_city(index)
+        city = self.city_encoder.transform([city])[0]
         rand = torch.rand(1)
         for i, transform_set in self.transform_sets.items():
             if  rand <= self.transform_probs[i]+1e-8:
-                signal = torch.load(f'data/cache/{i}/{filename}.pt')
-                return signal, label, filename, device
+                if hasattr(transform_set.transforms[0], 'sample_random'):
+                    path = transform_set.transforms[0].sample_random()
+                    signal = torch.load(path+filename+'.pt')
+                    return signal, label, filename, device, city
+                else:
+                    path = f'data/cache/{i}/{filename}.pt'
+                    signal = torch.load(path)
+                    return signal, label, filename, device, city
 
 
