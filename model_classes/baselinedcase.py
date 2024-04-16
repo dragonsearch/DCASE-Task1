@@ -23,11 +23,13 @@ class BaselineDCASECNN(nn.Module):
         self.dropout_2 = nn.Dropout(params['dropout'])
         
         self.flatten = nn.Flatten()
-        self.dense_1 = nn.Linear(480, 100)
+        # Ajustamos la dimensión de salida de la capa densa 1
+        self.dense_1 = nn.Linear(32*5*11, 100)  # Ajustamos esta dimensión según lo calculado
         self.dropout_3 = nn.Dropout(0.5)
         self.dense_2 = nn.Linear(100, 10)
 
     def forward(self, x):
+        print(x.shape)
         x = self.conv2d_1(x)
         x = self.batch_norm_1(x)
         x = self.activation_1(x)

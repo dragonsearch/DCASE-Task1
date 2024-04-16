@@ -8,8 +8,10 @@ from sklearn.preprocessing import LabelEncoder
 from torch.utils.tensorboard import SummaryWriter
 from matplotlib import pyplot as plt
 from torchaudio.transforms import Resample, Vol, TimeMasking, FrequencyMasking, TimeStretch, PitchShift
+from custom_transforms import IRAugmentation
 #import dataset.base_dataset as base_dataset
 from dataset.base_dataset import Base_dataset
+
 class Cached_dataset(Base_dataset):
     def __init__(self, content_file, audio_dir, transformations , transform_probs, sample_rate_target, device, label_encoder, cache_transforms=True):
         """
@@ -45,7 +47,7 @@ class Cached_dataset(Base_dataset):
             raise ValueError("The number of transform probabilities must be equal to the number of transformations")
         if cache_transforms:
             self._cache_transforms()
-        #self._test_cached_transforms()
+        #self._test_cached_transforms() 
             
         
 
@@ -55,6 +57,24 @@ class Cached_dataset(Base_dataset):
         filename = self._get_audio_sample_filename(index)
         device = self._get_audio_recording_device(index)
         signal, sr = torchaudio.load(audio_sample_path)
+        
+        ira = IRAugmentation()
+        
+        # Apply IRAugmentation with 40% probability
+        if np.random.rand() < 0.4: 
+            signal = ira(signal)
+
+
+
+            """ index = np.random.randint(0, len(dirs))
+            dir, _ = torchaudio.load(f'dirs/{dirs[index]}')
+            #Modify dirs to match shape [1,44100]
+            if dir.shape[1] < 44100:
+                dirs2 = torch.cat((dir, torch.zeros(1,44100-dir.shape[1])),1)
+
+            x2 = convolve(signal, dirs2, mode='full')
+            signal = torch.tensor(x2[:, :signal.shape[1]]) """
+
 
         # Move the signal to the correct device
         signal = signal.to(self.device)
