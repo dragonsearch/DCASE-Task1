@@ -58,22 +58,6 @@ class Cached_dataset(Base_dataset):
         device = self._get_audio_recording_device(index)
         signal, sr = torchaudio.load(audio_sample_path)
         
-        ira = IRAugmentation()
-        
-        # Apply IRAugmentation with 40% probability
-        if np.random.rand() < 0.4: 
-            signal = ira(signal)
-
-
-
-            """ index = np.random.randint(0, len(dirs))
-            dir, _ = torchaudio.load(f'dirs/{dirs[index]}')
-            #Modify dirs to match shape [1,44100]
-            if dir.shape[1] < 44100:
-                dirs2 = torch.cat((dir, torch.zeros(1,44100-dir.shape[1])),1)
-
-            x2 = convolve(signal, dirs2, mode='full')
-            signal = torch.tensor(x2[:, :signal.shape[1]]) """
 
 
         # Move the signal to the correct device
