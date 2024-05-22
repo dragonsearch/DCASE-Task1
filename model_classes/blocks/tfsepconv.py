@@ -1,7 +1,8 @@
 import torch.nn as nn
 import torch
 from model_classes.blocks.convblock import ConvBlock
-
+#Import dropblock from torchvision
+from torchvision.ops import DropBlock2d
 class TimeFreqSepConvs(nn.Module):
     def __init__(self,
                  in_channels,
@@ -16,18 +17,20 @@ class TimeFreqSepConvs(nn.Module):
 
         if self.transition:
             self.trans_conv = ConvBlock(in_channels=in_channels, out_channels=out_channels, kernel_size=1,
-                                        use_bn=True, use_relu=True)
+                                        use_bn=False, use_relu=False)
         self.freq_dw_conv = ConvBlock(in_channels=self.half_channels, out_channels=self.half_channels,
                                       kernel_size=(3, 1),
-                                      padding=(1, 0), groups=self.half_channels, use_bn=True, use_relu=True)
+                                      padding=(1, 0), groups=self.half_channels, use_bn=False, use_relu=False)
         self.temp_dw_conv = ConvBlock(in_channels=self.half_channels, out_channels=self.half_channels,
                                       kernel_size=(1, 3),
-                                      padding=(0, 1), groups=self.half_channels, use_bn=True, use_relu=True)
+                                      padding=(0, 1), groups=self.half_channels, use_bn=False, use_relu=False)
         self.freq_pw_conv = ConvBlock(in_channels=self.half_channels, out_channels=self.half_channels, kernel_size=1,
                                       use_bn=True, use_relu=True)
         self.temp_pw_conv = ConvBlock(in_channels=self.half_channels, out_channels=self.half_channels, kernel_size=1,
                                       use_bn=True, use_relu=True)
         self.dropout = nn.Dropout(p=dropout_rate)
+        # Use dropblock instead of dropout
+        self.dropblock = DropBlock2d(block_size=7,p=0.1)
         self.shuffle_layer = ShuffleLayer(group=shuffle_groups)
 
     def forward(self, x):
@@ -52,12 +55,14 @@ class TimeFreqSepConvs(nn.Module):
         x1 = self.freq_pw_conv(x1)
 
         x1 = self.dropout(x1)
+        #x1 = self.dropblock(x1)
         x1 = x1 + identity1
         # Time-wise convolution block
         x2 = self.temp_dw_conv(x2)
         x2 = x2.mean(3, keepdim=True)  # temporal average pooling
         x2 = self.temp_pw_conv(x2)
         x2 = self.dropout(x2)
+        #x2 = self.dropblock(x2)
         x2 = x2 + identity2
         # Concat x1 and x2
         x = torch.cat((x1, x2), dim=1)

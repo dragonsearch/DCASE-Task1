@@ -9,7 +9,7 @@ defaultcfg = {
 }
 
 class TfSepNet(torch.nn.Module):
-    def __init__(self, depth=18, width=40, dropout_rate=0.2, shuffle=True, shuffle_groups=10):
+    def __init__(self, depth=18, width=60, dropout_rate=0.33, shuffle=True, shuffle_groups=10):
         super(TfSepNet, self).__init__()
         cfg = defaultcfg[18]
         self.width = width
@@ -22,7 +22,7 @@ class TfSepNet(torch.nn.Module):
         while isinstance(cfg[i], str):
             i -= 1
         self.classifier = nn.Conv2d(round(cfg[i] * self.width), 10, 1, bias=True)
-        self.alpha = 0.3
+        self.alpha = 0.2
         self.beta = torch.distributions.Beta(self.alpha, self.alpha)
         self.eps = 1e-6
         self.p = 0.5
@@ -34,7 +34,6 @@ class TfSepNet(torch.nn.Module):
             return x
     
         B = x.size(0)
-
         mu = x.mean(dim=[1, 3], keepdim=True)
         var = x.var(dim=[1, 3], keepdim=True)
         sig = (var + self.eps).sqrt()
