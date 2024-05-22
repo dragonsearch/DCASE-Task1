@@ -110,7 +110,10 @@ class Trainer():
 
     def load_model(self, epoch):
         ckpt_path = 'models/' + self.name + "/ckpt" + "/model_" + str(self.name) + '_' + str(epoch) + ".pth"
+        #lr_sc_dummy = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=1, gamma=1)
+        #optimizer_dummy = torch.optim.Adam(self.model.parameters(), lr=1e-3)
         self.model, self.optimizer = load_ckpt(self.model, self.optimizer, self.lr_scheduler, ckpt_path)
+        #self.model, _ = load_ckpt(self.model, optimizer_dummy, lr_sc_dummy, ckpt_path)
         self.model = self.model.to(self.device)
         print("Loading model with loss: ", self.loss_dict["train"][epoch], "from ", ckpt_path)
     

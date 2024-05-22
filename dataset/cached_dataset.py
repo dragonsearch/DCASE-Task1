@@ -8,12 +8,11 @@ from sklearn.preprocessing import LabelEncoder
 from torch.utils.tensorboard import SummaryWriter
 from matplotlib import pyplot as plt
 from torchaudio.transforms import Resample, Vol, TimeMasking, FrequencyMasking, TimeStretch, PitchShift
-from custom_transforms import IRAugmentation
 #import dataset.base_dataset as base_dataset
 from dataset.base_dataset import Base_dataset
 
 class Cached_dataset(Base_dataset):
-    def __init__(self, content_file, audio_dir, transformations , transform_probs, sample_rate_target, device, label_encoder, cache_transforms=True):
+    def __init__(self, content_file, audio_dir, transformations , transform_probs, sample_rate_target, device, label_encoder, skipCache=[],cache_transforms=True):
         """
         The function initializes an object with a content file and an audio directory.
         
@@ -31,7 +30,7 @@ class Cached_dataset(Base_dataset):
         """
        
         super().__init__(content_file, audio_dir, None, sample_rate_target, device, label_encoder)
-
+        self.skipCache=skipCache
         if not os.path.exists('data/cache'):
             os.makedirs('data/cache')
         for i,_ in enumerate(transformations):
@@ -46,6 +45,7 @@ class Cached_dataset(Base_dataset):
         if len(self.transform_probs) != len(transformations):
             raise ValueError("The number of transform probabilities must be equal to the number of transformations")
         if cache_transforms:
+            print("Caching transformations")
             self._cache_transforms()
         #self._test_cached_transforms() 
             
@@ -58,22 +58,6 @@ class Cached_dataset(Base_dataset):
         device = self._get_audio_recording_device(index)
         signal, sr = torchaudio.load(audio_sample_path)
         
-        ira = IRAugmentation()
-        
-        # Apply IRAugmentation with 40% probability
-        if np.random.rand() < 0.4: 
-            signal = ira(signal)
-
-
-
-            """ index = np.random.randint(0, len(dirs))
-            dir, _ = torchaudio.load(f'dirs/{dirs[index]}')
-            #Modify dirs to match shape [1,44100]
-            if dir.shape[1] < 44100:
-                dirs2 = torch.cat((dir, torch.zeros(1,44100-dir.shape[1])),1)
-
-            x2 = convolve(signal, dirs2, mode='full')
-            signal = torch.tensor(x2[:, :signal.shape[1]]) """
 
 
         # Move the signal to the correct device
@@ -127,10 +111,18 @@ class Cached_dataset(Base_dataset):
         :return: None
         """
         for i, transform_set in self.transform_sets.items():
-                for j in range(0, len(self.content)):
-                    signal, sr, filename, device = self._transform_data(j, transform_set)
-                    torch.save(signal, f'data/cache/{i}/{filename}.pt')
-                    del signal
+                if i in self.skipCache:
+                    print(f"Skipping caching for set {i}")
+                else:
+                    print(f"Caching transformations for set {i} {type(transform_set)}, {transform_set.transforms[0].__class__.__name__}")
+                    if transform_set.transforms[0].__class__.__name__ == 'TimeShiftSpectrogram':
+                        print("Caching trasformations for time shifting, this should be a once in a while thing")
+                        transform_set.transforms[0].transform_all_clips()
+                    else:
+                        for j in range(0, len(self.content)):
+                            signal, sr, filename, device = self._transform_data(j, transform_set)
+                            torch.save(signal, f'data/cache/{i}/{filename}.pt')
+                            del signal
         print("Transformations are cached to disk")
     def _get_audio_sample_city(self, index):
         """
@@ -156,16 +148,34 @@ class Cached_dataset(Base_dataset):
         device = self._get_audio_recording_device(index)
         city = self._get_audio_sample_city(index)
         city = self.city_encoder.transform([city])[0]
-        rand = torch.rand(1)
-        for i, transform_set in self.transform_sets.items():
-            if  rand <= self.transform_probs[i]+1e-8:
-                if hasattr(transform_set.transforms[0], 'sample_random'):
-                    path = transform_set.transforms[0].sample_random()
-                    signal = torch.load(path+filename+'.pt')
+        while True:
+            chosen_transform = self._choose_transform()
+            transform_set = self.transform_sets[chosen_transform]
+            if hasattr(transform_set.transforms[0], 'sample_random'):
+                path = transform_set.transforms[0].sample_random()
+                signal = torch.load(path+filename+'.pt')
+                return signal, label, filename, device, city
+            elif transform_set.transforms[0].__class__.__name__ == 'IRAugmentation':
+                #transform back device
+                if self.device_encoder.inverse_transform([device])[0] == 'a':
+                    signal, sr, filename, device = self._transform_data(index, transform_set)
                     return signal, label, filename, device, city
                 else:
-                    path = f'data/cache/{i}/{filename}.pt'
-                    signal = torch.load(path)
+                    continue
+            elif chosen_transform in self.skipCache:
+                    signal, sr, filename, device = self._transform_data(index, transform_set)
                     return signal, label, filename, device, city
-
+            else:
+                path = f'data/cache/{chosen_transform}/{filename}.pt'
+                signal = torch.load(path)
+                return signal, label, filename, device, city
+            
+    def _choose_transform(self):
+        """
+        The function `choose_transform` is used to select a random transformation from the list of transformations
+        based on the probabilities of each transformation.
+        
+        :return: The function returns the index of the selected transformation
+        """
+        return np.argmax(self.transform_probs > np.random.rand())
 
