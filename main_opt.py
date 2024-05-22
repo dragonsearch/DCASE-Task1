@@ -38,6 +38,8 @@ def objective(trial, params):
     params_copy.update(trial_model_params)
     torch.device(params_copy['device'])
     torch.manual_seed(params_copy['seed'])
+    import warnings
+    warnings.filterwarnings("ignore") 
     np.random.seed(params_copy['seed'])
     train_loader, val_loader, _, label_encoder = load_dataloaders(trial, params_copy)
     model = get_model(params_copy)
