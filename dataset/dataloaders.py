@@ -59,23 +59,27 @@ def transforms(params):
             f_max=None,
             f_min=0
         ).to(params['device'])
+    #mel_spectrogram = log_mel(mel_spectrogram)
     metadata = pd.read_csv('data/TAU-urban-acoustic-scenes-2022-mobile-development/meta.csv', sep='\t')
     t = TimeShiftSpectrogram(params['sample_rate'], 0.1, metadata, mel_spectrogram)
     t.to(params['device'])
     #t.transform_all_clips()
     data_augmentation_transforms = [
-    v2.Compose([mel_spectrogram]),
-    v2.Compose([mel_spectrogram, FrequencyMasking(freq_mask_param=10).to(params['device'])]),
-    v2.Compose([mel_spectrogram, TimeMasking(time_mask_param=10).to(params['device'])]),
+    v2.Compose([IRAugmentation().to(params['device']), mel_spectrogram]),
+    v2.Compose([mel_spectrogram, FrequencyMasking(freq_mask_param=25).to(params['device'])]),
+    v2.Compose([mel_spectrogram, TimeMasking(time_mask_param=25).to(params['device'])]),
     v2.Compose([PitchShift(params['sample_rate'], n_steps=2).to(params['device']), mel_spectrogram]),
-    v2.Compose([Vol(gain=0.5).to(params['device']), mel_spectrogram])
+    v2.Compose([Vol(gain=0.5).to(params['device']), mel_spectrogram]),
+    v2.Compose([t]),
+    v2.Compose([mel_spectrogram])
     ]
     """
     data_augmentation_transforms = [
     v2.Compose([mel_spectrogram])
     ]
     """
-    data_augmentation_transform_probs = [0.5, 0.2, 0.1, 0.1, 0.1]
+    #data_augmentation_transform_probs = [0, 0.2, 0.1, 0.0, 0.1,0.3,0.3]
+    data_augmentation_transform_probs = params['transform_probs']
     #data_augmentation_transform_probs = [1]
     return mel_spectrogram, data_augmentation_transforms, data_augmentation_transform_probs
 
@@ -92,7 +96,7 @@ def get_dataset(params, data_training_path,
             label_encoder=LabelEncoder(),
             tensorboard=True
             )
-        
+    skipCache = params['skip_cache_train']
     label_encoder = LabelEncoder()
     audiodataset_train = Cached_dataset(
         data_training_path + 'evaluation_setup/fold1_train.csv',
@@ -103,8 +107,10 @@ def get_dataset(params, data_training_path,
         'cuda',
         label_encoder= label_encoder,
         cache_transforms=params['cache_transforms'],
+        skipCache=skipCache
         #data_augmentation=params['data_augmentation']
         )
+    skipCache = params['skip_cache_val']
     audiodataset_val = Cached_dataset(
         data_training_path + 'evaluation_setup/fold1_evaluate.csv',
         data_training_path + 'audio',
@@ -114,6 +120,7 @@ def get_dataset(params, data_training_path,
         'cuda',
         label_encoder=label_encoder,
         cache_transforms=params['cache_transforms'],
+        skipCache=skipCache
         #data_augmentation=params['data_augmentation']
         )
     # Not using the evaluation set for now
