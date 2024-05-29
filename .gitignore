@@ -6,3 +6,4 @@ params.json
 runs/
 mnist/
 launch.sh
+Data_info.ipynb

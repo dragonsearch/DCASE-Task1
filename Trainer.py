@@ -49,12 +49,14 @@ class Trainer():
         for metrics in self.metrics:
             self.metrics[metrics].to(self.device)
         
-        
+        self.label_encoder = params['label_encoder']   
         self.n_total_steps_train = len(self.train_loader)
         self.n_total_steps_val = len(self.val_loader)
-        self.loss_dict = {stage : {i:-1 for i in range(1,self.num_epochs+1)} for stage in ["train", "val"]}
-        self.metrics_dict = { stage : {str(metric) : {i:-1 for i in range(1,self.num_epochs+1)} }
-                             for metric in self.metrics for stage in ["train", "val"]}
+        self.loss_dict = {stage : {i:-100 for i in range(1,self.num_epochs+1)} for stage in ["train", "val"]}
+        self.metrics_dict = {stage : None for stage in ["train", "val"]}
+        self.lr_scheduler = params['lr_scheduler']
+        for stage in ["train", "val"]:
+            self.metrics_dict[stage] = {str(metric) : {i:-100 for i in range(1,self.num_epochs+1)} for metric in self.metrics} 
         self.params = params.copy()
         self.prepare_dirs()
         self.save_exec_params()
@@ -73,7 +75,7 @@ class Trainer():
             self.writer.add_text(metrics, str(value))
 
         #Save model graph to tensorboard with a example input from the dataloader
-        self.writer.add_graph(self.model, next(iter(self.train_loader))[0].to(self.device))
+        #self.writer.add_graph(self.model, next(iter(self.train_loader))[0].to(self.device))
     
         
     
@@ -108,7 +110,10 @@ class Trainer():
 
     def load_model(self, epoch):
         ckpt_path = 'models/' + self.name + "/ckpt" + "/model_" + str(self.name) + '_' + str(epoch) + ".pth"
-        self.model, self.optimizer = load_ckpt(self.model, self.optimizer, ckpt_path)
+        #lr_sc_dummy = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=1, gamma=1)
+        #optimizer_dummy = torch.optim.Adam(self.model.parameters(), lr=1e-3)
+        self.model, self.optimizer = load_ckpt(self.model, self.optimizer, self.lr_scheduler, ckpt_path)
+        #self.model, _ = load_ckpt(self.model, optimizer_dummy, lr_sc_dummy, ckpt_path)
         self.model = self.model.to(self.device)
         print("Loading model with loss: ", self.loss_dict["train"][epoch], "from ", ckpt_path)
     
@@ -117,7 +122,7 @@ class Trainer():
     """
     def save_model(self, epoch):
         ckpt_path = 'models/' + self.name + "/ckpt" + "/model_" + str(self.name) + '_' + str(epoch) + ".pth"
-        save_ckpt(self.model, self.optimizer, ckpt_path, epoch)
+        save_ckpt(self.model, self.optimizer, self.lr_scheduler, ckpt_path, epoch)
         print("Saving model with loss: ", self.loss_dict["train"][epoch], "as ", ckpt_path)
         self.save_dicts()
 
@@ -141,9 +146,15 @@ class Trainer():
         y_pred = torch.as_tensor(y_pred, dtype=torch.float64)
 
         for metric in self.metrics:
-            self.metrics[metric].update(y_pred, y_true)
+            if metric != "DevAccuracy" and metric != "CityAccuracy":
+                self.metrics[metric].update(y_pred, y_true)
+                
 
-
+    def add_to_dev_accuracy(self, y_pred, y_true, devices):
+        """
+        Adds the predictions and the labels to the metrics
+        """
+        self.metrics['DevAccuracy'].update(y_pred, y_true, devices)
  
     def train_epoch(self,epoch):
         """
@@ -154,22 +165,25 @@ class Trainer():
         
         
         print(f"Epoch {epoch}/{self.num_epochs}")
+        self.loss_dict["train"][epoch] = 0
         for i, (samples, labels, *rest) in enumerate(self.train_loader):
             samples = samples.to(self.device)
             labels = labels.to(self.device)
             y_pred,loss = self.train_step(samples, labels)
+            devices = rest[1].to(self.device)
+            self.lr_scheduler.step(epoch + i / self.n_total_steps_train)
             # Add loss and metrics
             self.loss_dict["train"][epoch] += loss.item()
             self.add_to_metric(y_pred, labels)
-
+            if 'DevAccuracy' in self.metrics:
+                self.add_to_dev_accuracy(y_pred, labels, devices)
+            if 'CityAccuracy' in self.metrics:
+                cities = rest[2].to(self.device)
+                self.add_to_city_accuracy(y_pred, labels, cities)
             #Add scalars to a Tensorboard 
             step = (epoch - 1) * len(self.train_loader) + i
-            self.writer.add_scalar('Loss/train', loss.item(), step)
-            for metric_name, metric in self.metrics.items():
-                self.writer.add_scalar(f'{metric_name}/train', metric.compute(), step)
-                
-            
-             
+            self.scalars_to_writer(loss, "train (Step)", step)
+
             if (i+1) % 100 == 0:
                 print (f'Step [{i+1}/{self.n_total_steps_train}], Loss: {loss.item():.4f}, Time: {time.time()-time_epoch:.2f} s')
         
@@ -183,9 +197,13 @@ class Trainer():
         print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Loss: {self.loss_dict['train'][epoch]:.4f}, Time: {time.time()-time_epoch:.2f} s")
 
         #Add scalars to a Tensorboard for each epoch
-        self.writer.add_scalar('Loss/train (Epoch)', loss.item(), step)
+        self.scalars_to_writer(loss, "train (Epoch)", step)
+    
+    def scalars_to_writer(self, loss, name, step):
+        self.writer.add_scalar(f'Loss/{name}', loss.item(), step)
         for metric_name, metric in self.metrics.items():
-            self.writer.add_scalar(f'{metric_name}/train (Epoch)', metric.compute(), step)
+            if metric_name != "MulticlassConfusionMatrix" and metric_name != "DevAccuracy" and metric_name != "CityAccuracy":
+                self.writer.add_scalar(f'{metric_name}/{name}', metric.compute(), step)
 
     def train_step(self, samples, labels):  
         """
@@ -201,7 +219,6 @@ class Trainer():
 
         loss.backward()
         self.optimizer.step()
-
         return y_pred, loss
 
 
@@ -214,18 +231,23 @@ class Trainer():
         with torch.no_grad():
             time_step = time.time()
             print(f"Validation batch")
+            self.loss_dict["val"][epoch] = 0
             for i, (samples, labels,*rest) in enumerate(self.val_loader):
                 samples = samples.to(self.device)
                 labels = labels.to(self.device)
+                devices = rest[1].to(self.device)
                 y_pred,loss = self.val_step(samples, labels, epoch)
                 # Add loss and metrics
                 self.loss_dict["val"][epoch] += loss.item()
                 self.add_to_metric(y_pred, labels)
+                if 'DevAccuracy' in self.metrics:
+                    self.add_to_dev_accuracy(y_pred, labels, devices)
+                if 'CityAccuracy' in self.metrics:
+                    cities = rest[2].to(self.device)
+                    self.add_to_city_accuracy(y_pred, labels, cities)
                 #Add scalars to Tensorboard
                 step = (epoch - 1) * len(self.val_loader) + i
-                self.writer.add_scalar('Loss/Val', loss.item(), step)
-                for metric_name, metric in self.metrics.items():
-                    self.writer.add_scalar(f'{metric_name}/Val', metric.compute(), step)
+                self.scalars_to_writer(loss, "val (Step)", step)
                 if (i+1) % 100 == 0:
                     print (f'Step [{i+1}/{self.n_total_steps_val}], Loss: {loss.item():.4f}, Time: {time.time()-time_step:.2f} s')
 
@@ -235,43 +257,68 @@ class Trainer():
             # Compute metrics
             self.compute_metrics(epoch, val=True)
 
-            print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Val Loss: {self.loss_dict['val'][epoch]:.4f}, Time: {time.time()-time_step:.2f} s")
-
-            #Confusion matrix
-            class_labels = ['airport', 'bus', 'metro', 'metro_station', 'park', 'public_square', 'shopping_mall', 'street_pedestrian', 'street_traffic', 'tram']
-            y_true_np = labels.cpu().numpy()
-            y_pred_np = torch.argmax(y_pred, dim=1).cpu().numpy()
-
-            cm = confusion_matrix(y_true_np, y_pred_np)
-            cm_norm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-
-            #Display a big confusion matrix
-            fig, ax = plt.subplots(figsize=(18,18))
-            #disp = ConfusionMatrixDisplay(confusion_matrix=cm_norm, display_labels=class_labels)
-            #disp.plot(ax=ax)
-            #confusion_image_bytes = self.plot_to_image(fig)
-
-            confusion_display = ConfusionMatrixDisplay(cm_norm, display_labels=class_labels)
-            confusion_image = confusion_display.plot(cmap=plt.cm.Blues, ax=ax, values_format=".2f").figure_
-            confusion_image_bytes = self.plot_to_image(confusion_image)
+            print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Val Loss: {self.loss_dict['val'][epoch]:.4f}, Time: {time.time()-time_step:.2f} s")  
             
-
-            #Add to tensorboard
-            self.writer.add_image(f"Confusion Matrix/Epoch{epoch}", confusion_image_bytes, epoch)
-
-
+            #Print device accuracy
+            if 'DevAccuracy' in self.metrics_dict['val']:
+                self.plot_dev_accuracy(epoch)
+            if 'MulticlassConfusionMatrix' in self.metrics_dict['val']:
+                self.confusion_matrix(epoch)
+            if 'CityAccuracy' in self.metrics_dict['val']:
+                self.plot_city_accuracy(epoch)  
+                print(self.metrics_dict['val']['CityAccuracy'][epoch].cpu().numpy())
             #Plots for every epoch
-            self.writer.add_scalar('Loss/Val (Epoch)', loss.item(), step)
-            for metric_name, metric in self.metrics.items():
-                self.writer.add_scalar(f'{metric_name}/Val (Epoch)', metric.compute(), step)
-
+            self.scalars_to_writer(loss, "val (Epoch)", step)
             # Early stopping
             if self.early_stopping(epoch):
-                raise Exception("Early stopping")
-            
+                raise EarlyStoppingException()
         self.model.train()
         print( "Validation ended")
-        
+    
+    def add_to_city_accuracy(self, y_pred, y_true, cities):
+        """
+        Adds the predictions and the labels to the metrics
+        """
+        self.metrics['CityAccuracy'].update(y_pred, y_true, cities)
+
+    def plot_city_accuracy(self, epoch):
+        fig, ax = plt.subplots(figsize=(18,18))
+        city_accuracy = self.metrics_dict['val']['CityAccuracy'][epoch].cpu().numpy()
+        ax.bar(np.arange(len(city_accuracy)), city_accuracy)
+        ax.set_xticks(np.arange(len(city_accuracy)))
+        ax.set_xticklabels(self.val_loader.dataset.city_encoder.inverse_transform(np.arange(len(city_accuracy))))
+        city_accuracy_image = ax.figure
+        city_accuracy_image_bytes = self.plot_to_image(city_accuracy_image)
+        self.writer.add_image(f"City Accuracy/Epoch{epoch}", city_accuracy_image_bytes, epoch)
+        plt.close()
+        print(self.metrics_dict['val']['CityAccuracy'][epoch].cpu().numpy())
+
+    def plot_dev_accuracy(self, epoch):
+
+        fig, ax = plt.subplots(figsize=(18,18))
+        device_accuracy = self.metrics_dict['val']['DevAccuracy'][epoch].cpu().numpy()
+        ax.bar(np.arange(len(device_accuracy)), device_accuracy)
+        ax.set_xticks(np.arange(len(device_accuracy)))
+        ax.set_xticklabels(self.val_loader.dataset.device_encoder.inverse_transform(np.arange(len(device_accuracy))))
+        device_accuracy_image = ax.figure
+        device_accuracy_image_bytes = self.plot_to_image(device_accuracy_image)
+        self.writer.add_image(f"Device Accuracy/Epoch{epoch}", device_accuracy_image_bytes, epoch)
+        plt.close()
+        print(self.metrics_dict['val']['DevAccuracy'][epoch].cpu().numpy())
+
+    def confusion_matrix(self, epoch):
+        # 0-9- > classes
+        #Display a big confusion matrix
+        fig, ax = plt.subplots(figsize=(18,18))
+        conf_matrix = self.metrics_dict['val']['MulticlassConfusionMatrix'][epoch].cpu().numpy()
+        # Confusion matrix inverse transform labels
+        class_labels = self.label_encoder.inverse_transform(np.arange(conf_matrix.shape[0]))
+        confusion_display = ConfusionMatrixDisplay(conf_matrix, display_labels=class_labels)
+        confusion_image = confusion_display.plot(cmap=plt.cm.Blues, ax=ax, values_format=".2f").figure_
+        confusion_image_bytes = self.plot_to_image(confusion_image)
+        #Add to tensorboard
+        self.writer.add_image(f"Confusion Matrix/Epoch{epoch}", confusion_image_bytes, epoch)
+        plt.close()
     def val_step(self, samples, labels, epoch):
         with torch.no_grad():
             # Forward pass
@@ -323,79 +370,17 @@ class Trainer():
             self.reset_metrics()
             try:
                 self.val_epoch(ep)
-            except Exception as e:
+            except EarlyStoppingException as e:
                 print(e)
                 break
             self.reset_metrics()
             self.save_model(ep)
         print(f'Finished Training in {time.time()-time_start:.2f} s')
         return self.loss_dict, self.metrics_dict
-    
-class TrainerMixUp(Trainer):
-    def __init__(self, params) -> None:
-        super().__init__(params)
-        self.mixup_alpha = params['mixup_alpha']
-        self.mixup_prob = params['mixup_prob'] if 'mixup_prob' in params else 0
-    
-    def mixUpCriterion(self, y_pred, y_a, y_b, lam):
-        # There are 2 ways of doing this. One for onehot encoded labels and one 
-        # for non onehot encoded labels.
-        # For onehot encoded labels (as in original paper):
-        # loss = lam * self.criterion(y_pred, y_true) + (1 - lam) * self.criterion(y_pred, y_true)
-        # For non onehot encoded labels (as in the original implementation):
-        # loss = lam * self.criterion(y_pred, y_a) + (1 - lam) * self.criterion(y_pred, y_b)
-        # Notice lerp makes us swap the order of the parameters
-        loss = torch.lerp(self.criterion(y_pred, y_b), self.criterion(y_pred, y_a), lam)
 
-        return loss
-    
-    def train_step(self, samples, labels_a, labels_b, lam):
-        # Forward pass
-        self.optimizer.zero_grad()
-        y_pred = self.model(samples)
-        loss = self.mixUpCriterion(y_pred, labels_a, labels_b, lam)
-        # Backward and optimize
-        loss.backward()
-        self.optimizer.step()
-        return y_pred, loss
-    
-    def mixup_data(self, x, y):
-        # Similar to the original implementation  
-        # Remember giving alpha = 0 is the same as not using mixup
-        if self.mixup_alpha > 0:
-            lam =  np.random.beta(self.mixup_alpha, self.mixup_alpha)
-        else:
-            lam = 1
-        if self.mixup_prob > 0:
-            if np.random.rand() > self.mixup_prob:
-                lam = 1
-        index = torch.randperm(x.size(0)).to(self.device)
-        #mixed_x = lam * x + (1 - lam) * x[index, :]
-        mixed_x = torch.lerp(x[index, :], x, lam)
-        y_a, y_b = y, y[index]
-        return mixed_x, y_a, y_b, lam
-    
-    def train_epoch(self,epoch):
-        """
-        Trains the model for each epoch
-        """
-        time_epoch = time.time() 
-        print(f"Epoch {epoch}/{self.num_epochs}")
+class EarlyStoppingException(Exception):
+    # Exception raised for early stopping
 
-        for i, (samples, labels, *rest) in enumerate(self.train_loader):
-            samples = samples.to(self.device)
-            labels = labels.to(self.device)
-            samples, labels_a, labels_b, lam = self.mixup_data(samples, labels)
-            y_pred,loss = self.train_step(samples, labels_a, labels_b , lam)
-            # Add loss and metrics
-            self.loss_dict["train"][epoch] += loss.item()
-            self.add_to_metric(y_pred, labels)
-            if (i+1) % 100 == 0:
-                print (f'Step [{i+1}/{self.n_total_steps_train}], Loss: {loss.item():.4f}, Time: {time.time()-time_epoch:.2f} s')
-        # Compute metrics
-        self.compute_metrics(epoch, val=False)
-
-        # Compute loss
-        self.loss_dict["train"][epoch] /= self.n_total_steps_train
-
-        print(f"Epoch {epoch}/{self.start_epoch + self.num_epochs-1}, Loss: {self.loss_dict['train'][epoch]:.4f}, Time: {time.time()-time_epoch:.2f} s")
+    def __init__(self, message="Early stopping"):
+        self.message = message
+        super().__init__(self.message)
