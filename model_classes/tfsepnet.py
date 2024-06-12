@@ -9,7 +9,7 @@ defaultcfg = {
 }
 
 class TfSepNet(torch.nn.Module):
-    def __init__(self, depth=18, width=60, dropout_rate=0.33, shuffle=True, shuffle_groups=10):
+    def __init__(self, depth=18, width=60, dropout_rate=0.2, shuffle=True, shuffle_groups=10):
         super(TfSepNet, self).__init__()
         cfg = defaultcfg[18]
         self.width = width

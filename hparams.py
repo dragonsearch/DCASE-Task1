@@ -15,9 +15,9 @@ def first_hparams(trial):
     n_mels = 128
     trial_model_params = {
         'batch_size': 516,#trial.suggest_categorical('batch_size', [16,32, 64, 128]),
-        'name': trial.suggest_categorical('exp_name', ["TFSEPNET_less_bn_relu_[0.2, 0.2, 0.1, 0, 0.1, 0.2, 0.2]"]) + str(trial.number), 
+        'name': trial.suggest_categorical('exp_name', ["TFSEPNET_less_bn_relu_[0.0, 0.0, 0.0, 0, 0.0, 0.0, 1.0]"]) + str(trial.number), 
         'end_epoch': trial.suggest_categorical('end_epoch', [2, 3]),
-        "start_epoch": 250,
+        "start_epoch": 1,
         "end_epoch": 400,
         'lr' : 1e-3,#trial.suggest_float('lr', 2*1e-5, 3*1e-5, log=True),
         'mixup_alpha': trial.suggest_categorical('mixup_alpha', [0.2]),
@@ -44,7 +44,7 @@ def first_hparams(trial):
         "tensorboard": False,
         "skip_cache_train": [0,1,2],
         "skip_cache_val": [0],
-        "transform_probs": [0.2, 0.2, 0.1, 0, 0.1, 0.2, 0.2]
+        "transform_probs": [0.0, 0.0, 0.0, 0, 0.0, 0.0, 1.0]
 
 
     }
