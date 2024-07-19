@@ -15,13 +15,13 @@ def first_hparams(trial):
     n_mels = 128
     trial_model_params = {
         'batch_size': 516,#trial.suggest_categorical('batch_size', [16,32, 64, 128]),
-        'name': trial.suggest_categorical('exp_name', ["TFSEPNET_less_bn_relu_[0.2, 0.2, 0.1, 0, 0.1, 0.2, 0.2]"]) + str(trial.number), 
+        'name': trial.suggest_categorical('exp_name', ["teacher_sgd_kl_nodropout_TFSEPNET_0.0b=32_orig_20_nomixup_lr[0.4, 0.0, 0.0, 0, 0.0, 0.0, 0.6]_"]) + str(trial.number), 
         'end_epoch': trial.suggest_categorical('end_epoch', [2, 3]),
-        "start_epoch": 250,
+        "start_epoch": 1,
         "end_epoch": 400,
         'lr' : 1e-3,#trial.suggest_float('lr', 2*1e-5, 3*1e-5, log=True),
-        'mixup_alpha': trial.suggest_categorical('mixup_alpha', [0.2]),
-        'mixup_prob': trial.suggest_categorical('mixup_prob', [0.5]),
+        'mixup_alpha': trial.suggest_categorical('mixup_alpha', [0.0]),
+        'mixup_prob': trial.suggest_categorical('mixup_prob', [0.0]),
         'optimizer': "AdamW",
         "loss": "CrossEntropyLoss",
         'metrics': {'MulticlassAccuracy': [10,1,'macro'], 'MulticlassConfusionMatrix': [10]},
@@ -44,8 +44,12 @@ def first_hparams(trial):
         "tensorboard": False,
         "skip_cache_train": [0,1,2],
         "skip_cache_val": [0],
-        "transform_probs": [0.2, 0.2, 0.1, 0, 0.1, 0.2, 0.2]
-
+        "transform_probs": [0.4, 0.0, 0.0, 0, 0.0, 0.0, 0.6],
+        "teacher_name": "TFSEPNET_less_relu_80_nomixup_lr[0.25, 0.25, 0.1, 0, 0.0, 0.2, 0.2]_0",
+        "teacher_epoch": 199,
+        "temperature": 5,
+        "weight_teacher": 0.25,
+        "teacher": True,
 
     }
     return trial_model_params
@@ -71,6 +75,8 @@ def get_optimizer(model, params):
     optimizer_str = params['optimizer']
     lr_str = params['lr']
     optimizer = getattr(torch.optim, optimizer_str)(model.parameters(), lr=lr_str)
+    # Return sgd with momentum
+   # return torch.optim.SGD(model.parameters(), lr=lr_str, momentum=0.9)
     return optimizer
 
 def get_criterion(params):
