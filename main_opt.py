@@ -66,8 +66,13 @@ def objective(trial, params):
         nessi.get_model_size(model,'torch', input_size=(params_copy['batch_size'],1, 64,44))
     if 'mixup_alpha' in params_copy and 'mixup_prob' in params_copy:
         trainer = TrainerMixUp(params_copy)
-    else:
+    if 'teacher' in params_copy and params_copy['teacher']:
+        from trainer_kd import TrainerKD
+        print('Using teacher model')
+        trainer = TrainerKD(params_copy)
+    else:   
         trainer = Trainer(params_copy)
+    print(type(trainer))
     loss_dict, metrics_dict = trainer.train()
     #discard -1 values
     loss_dict['val'] = {k: v for k, v in loss_dict['val'].items() if v != -100}
@@ -85,7 +90,7 @@ if do_training:
     params = {
         'abspath': os.path.abspath('.'),
         #"eval_file" : os.path.abspath("resnet18/ckpt/model_resnet18_1.pth"),
-        'summary': True,
+        'summary': False,
         'nessi': False
     }
     #Optuna study
