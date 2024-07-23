@@ -1,8 +1,8 @@
 from torchmetrics import Metric
 import torch
 from torch import Tensor
-from torchmetrics.classification import MulticlassConfusionMatrix
-import numpy as np
+
+
 class CityAccuracy(Metric):
     def __init__(self, num_cities: int,**kwargs):
         super().__init__(**kwargs)

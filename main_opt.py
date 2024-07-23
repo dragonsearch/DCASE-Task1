@@ -1,37 +1,18 @@
 import torchinfo
 import torch
-from torchmetrics.classification import (MulticlassF1Score, MulticlassPrecision, 
-                                            MulticlassRecall, MulticlassPrecisionRecallCurve,
-                                            MulticlassROC, MulticlassConfusionMatrix, MulticlassAccuracy)
-
 import numpy as np
-import nessi
-
-
-from sklearn.preprocessing import LabelEncoder, LabelBinarizer
-
-#REMOVE LATER TESTING PURPOSES
-from torchvision import datasets
-from torchvision.transforms import ToTensor, v2
-from torch.utils.data import DataLoader
-
-import dataset
-from dataset.base_dataset import Base_dataset
-from dataset.cached_dataset import Cached_dataset
-from dataset.eval_dataset import Eval_dataset
-from dataset.meta_dataset import Meta_dataset
-
-from torchaudio.transforms import Resample, Vol, TimeMasking, FrequencyMasking, TimeStretch, PitchShift
-
+import tools.nessi as nessi
 import optuna
-from devAccuracy import DevAccuracy
-from cityAccuracy import CityAccuracy
+from metrics.devAccuracy import DevAccuracy
+from metrics.cityAccuracy import CityAccuracy
 # Absolute paths
 import os
-from Trainer import Trainer
-from trainer_mixup import TrainerMixUp
+from core.train.Trainer import Trainer
+from core.train.trainer_mixup import TrainerMixUp
 from hparams import first_hparams, get_model, get_optimizer, get_criterion, get_metrics, get_scheduler
 from dataset.dataloaders import load_dataloaders
+
+
 def objective(trial, params):
     params_copy = params.copy()
     trial_model_params = first_hparams(trial)
@@ -67,7 +48,7 @@ def objective(trial, params):
     if 'mixup_alpha' in params_copy and 'mixup_prob' in params_copy:
         trainer = TrainerMixUp(params_copy)
     if 'teacher' in params_copy and params_copy['teacher']:
-        from trainer_kd import TrainerKD
+        from core.train.trainer_kd import TrainerKD
         print('Using teacher model')
         trainer = TrainerKD(params_copy)
     else:   

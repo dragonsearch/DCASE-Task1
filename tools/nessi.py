@@ -2,7 +2,6 @@ import importlib
 import sys
 from pathlib import Path
 import numpy as np
-
 MAX_MACC=30e6       #30M MACC
 MAX_PARAMS=128e3    #128K params
 

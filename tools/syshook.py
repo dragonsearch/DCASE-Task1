@@ -1,6 +1,7 @@
 import traceback, ipdb
 import sys
 
+
 def ipdb_sys_excepthook():
     """
     When called this function will set up the system exception hook.

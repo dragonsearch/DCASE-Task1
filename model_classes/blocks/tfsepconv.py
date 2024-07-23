@@ -1,8 +1,9 @@
 import torch.nn as nn
 import torch
 from model_classes.blocks.convblock import ConvBlock
-#Import dropblock from torchvision
 from torchvision.ops import DropBlock2d
+
+
 class TimeFreqSepConvs(nn.Module):
     def __init__(self,
                  in_channels,

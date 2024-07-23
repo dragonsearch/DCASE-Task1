@@ -3,10 +3,9 @@ import torch
 from torchmetrics.classification import (MulticlassF1Score, MulticlassPrecision, 
                                             MulticlassRecall, MulticlassPrecisionRecallCurve,
                                             MulticlassROC, MulticlassConfusionMatrix, MulticlassAccuracy)
-import numpy as np
 import importlib
-from devAccuracy import DevAccuracy
-# Absolute paths
+from metrics.devAccuracy import DevAccuracy
+
 
 def first_hparams(trial):
     sample_rate = 32000

@@ -1,5 +1,7 @@
 import torch
 from torch import nn
+
+
 class AdaResNorm(nn.Module):
     def __init__(self, c, grad=False, id_norm=None, eps=1e-5):
         super(AdaResNorm, self).__init__()

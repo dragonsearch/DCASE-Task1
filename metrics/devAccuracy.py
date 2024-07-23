@@ -1,8 +1,8 @@
 from torchmetrics import Metric
 import torch
 from torch import Tensor
-from torchmetrics.classification import MulticlassConfusionMatrix
-import numpy as np
+
+
 class DevAccuracy(Metric):
     def __init__(self, num_devices: int,**kwargs):
         super().__init__(**kwargs)
