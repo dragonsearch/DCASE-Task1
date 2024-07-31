@@ -45,17 +45,15 @@ def objective(trial, params):
         torchinfo.summary(model, input_size=(258, 1,128,44))
     if 'nessi' in params_copy and params_copy['nessi']:
         nessi.get_model_size(model,'torch', input_size=(params_copy['batch_size'],1, 64,44))
-    if 'mixup_alpha' in params_copy and 'mixup_prob' in params_copy:
-        trainer = TrainerMixUp(params_copy)
     if 'teacher' in params_copy and params_copy['teacher']:
         from core.train.trainer_kd import TrainerKD
         print('Using teacher model')
         trainer = TrainerKD(params_copy)
     else:   
-        trainer = Trainer(params_copy)
+        trainer = TrainerMixUp(params_copy)
     print(type(trainer))
     loss_dict, metrics_dict = trainer.train()
-    #discard -1 values
+    #discard -100 values as those didn't get executed
     loss_dict['val'] = {k: v for k, v in loss_dict['val'].items() if v != -100}
     return loss_dict['val'][max(loss_dict['val'].keys())]
 
@@ -70,7 +68,7 @@ if do_training:
 
     params = {
         'abspath': os.path.abspath('.'),
-        #"eval_file" : os.path.abspath("resnet18/ckpt/model_resnet18_1.pth"),
+        #"eval_file" : os.path.abspath("models/resnet18/ckpt/model_resnet18_1.pth"),
         'summary': False,
         'nessi': False
     }
