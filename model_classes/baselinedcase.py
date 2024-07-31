@@ -1,6 +1,4 @@
-import torch
 from torch import nn
-import random
 class BaselineDCASECNN(nn.Module):
     def __init__(self, params):
         super().__init__()

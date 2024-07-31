@@ -1,5 +1,7 @@
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.optim.lr_scheduler import LRScheduler
+
+
 class CosineLRSchedulerWarmup(LRScheduler):
     # This is a wrapper for the CosineAnnealingWarmRestarts scheduler, but the first few epochs are linearly warmed up
     def __init__(self, optimizer, T_0, T_mult=1, eta_max=0.1, eta_min=0, last_epoch=-1, warmup_epochs=10):

@@ -2,11 +2,11 @@ from model_classes.blocks.tfsepconv import TimeFreqSepConvs
 import torch.nn as nn
 import torch
 from model_classes.common import AdaResNorm
-
-
 defaultcfg = {
     18: ['CONV', 'N', 1, 1, 'N', 'M', 1.5, 1.5, 'N', 'M', 2, 2, 'N', 2.5, 2.5, 2.5, 'N'],
 }
+
+
 
 class TfSepNet(torch.nn.Module):
     def __init__(self, depth=18, width=60, dropout_rate=0.33, shuffle=True, shuffle_groups=10):

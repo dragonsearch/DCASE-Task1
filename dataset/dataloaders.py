@@ -1,28 +1,17 @@
 import torch
 import torchaudio
-from torchmetrics.classification import (MulticlassF1Score, MulticlassPrecision, 
-                                            MulticlassRecall, MulticlassPrecisionRecallCurve,
-                                            MulticlassROC, MulticlassConfusionMatrix, MulticlassAccuracy)
-import numpy as np
-from sklearn.preprocessing import LabelEncoder, LabelBinarizer
-from dataset.base_dataset import Base_dataset
+from sklearn.preprocessing import LabelEncoder
 from dataset.cached_dataset import Cached_dataset
 from dataset.eval_dataset import Eval_dataset
 from dataset.meta_dataset import Meta_dataset
 from torchvision.transforms import v2
-from transforms import CustomTransformSpectrogram, CustomTransformAudio, TimeShiftSpectrogram, log_mel, AugmentMelSTFT
-from torchaudio.transforms import Resample, Vol, TimeMasking, FrequencyMasking, TimeStretch, PitchShift
-from transforms import IRAugmentation
+from dataset.transforms import TimeShiftSpectrogram
+from torchaudio.transforms import Vol, TimeMasking, FrequencyMasking, PitchShift
+from dataset.transforms import IRAugmentation
 import pandas as pd
 
+
 def load_dataloaders(trial, params):
-    # Load data using the dataloader
-    # The data is on /data/TAU-urban-acoustic-scenes-2022-mobile-development/audio folder 
-    # and the labels are on /data/TAU-urban-acoustic-scenes-2022-mobile-development/meta.csv
-    # The data is already split into train, and test sets.
-    """
-    Could be split into more functions later. Just so parameters are not hardcoded
-    """
     data_training_path = params['abspath'] + '/data/TAU-urban-acoustic-scenes-2022-mobile-development/'
     data_evaluation_path = params['abspath'] + '/data/TAU-urban-acoustic-scenes-2023-mobile-evaluation/'
 
@@ -40,14 +29,6 @@ def load_dataloaders(trial, params):
     train_loader = torch.utils.data.DataLoader(audiodataset_train, batch_size=params['batch_size'], shuffle=True)
     val_loader = torch.utils.data.DataLoader(audiodataset_val, batch_size=params['batch_size'], shuffle=True)
 
-    # MNIST dataset for testing
-    """
-    mnist_dataset = datasets.MNIST(root="mnist", train=True, download=True, transform=ToTensor())
-    mnist_test_dataset = datasets.MNIST(root="mnist", train=False, download=True, transform=ToTensor())
-
-    train_loader = DataLoader(mnist_dataset, batch_size=64, shuffle=True)
-    val_loader = DataLoader(mnist_test_dataset, batch_size=64, shuffle=True)
-    """
     return train_loader, val_loader, test_loader, label_encoder
 
 def transforms(params):
@@ -59,11 +40,11 @@ def transforms(params):
             f_max=None,
             f_min=0
         ).to(params['device'])
-    #mel_spectrogram = log_mel(mel_spectrogram)
     metadata = pd.read_csv('data/TAU-urban-acoustic-scenes-2022-mobile-development/meta.csv', sep='\t')
     t = TimeShiftSpectrogram(params['sample_rate'], 0.1, metadata, mel_spectrogram)
     t.to(params['device'])
-    #t.transform_all_clips()
+    if params['create_timeshift']:
+        t.transform_all_clips()
     data_augmentation_transforms = [
     v2.Compose([IRAugmentation().to(params['device']), mel_spectrogram]),
     v2.Compose([mel_spectrogram, FrequencyMasking(freq_mask_param=25).to(params['device'])]),
@@ -73,29 +54,14 @@ def transforms(params):
     v2.Compose([t]),
     v2.Compose([mel_spectrogram])
     ]
-    """
-    data_augmentation_transforms = [
-    v2.Compose([mel_spectrogram])
-    ]
-    """
-    #data_augmentation_transform_probs = [0, 0.2, 0.1, 0.0, 0.1,0.3,0.3]
     data_augmentation_transform_probs = params['transform_probs']
-    #data_augmentation_transform_probs = [1]
     return mel_spectrogram, data_augmentation_transforms, data_augmentation_transform_probs
 
 def get_dataset(params, data_training_path,
                  data_evaluation_path, mel_spectrogram, 
                  data_augmentation_transforms, data_augmentation_transform_probs):
     
-    if 'tensorboard' in params and params['tensorboard']:
-        audiodataset = Meta_dataset(
-            data_training_path + 'meta.csv', 
-            data_training_path + 'audio', 
-            data_augmentation_transforms, params['sample_rate'],
-            'cuda',
-            label_encoder=LabelEncoder(),
-            tensorboard=True
-            )
+    
     skipCache = params['skip_cache_train']
     label_encoder = LabelEncoder()
     audiodataset_train = Cached_dataset(
@@ -121,7 +87,6 @@ def get_dataset(params, data_training_path,
         label_encoder=label_encoder,
         cache_transforms=params['cache_transforms'],
         skipCache=skipCache
-        #data_augmentation=params['data_augmentation']
         )
     # Not using the evaluation set for now
     audio_evaluation_dataset = Eval_dataset(
@@ -131,3 +96,18 @@ def get_dataset(params, data_training_path,
         'cuda'
         )
     return audiodataset_train, audiodataset_val, audio_evaluation_dataset, label_encoder
+
+def save_class_samples_to_tb(params):
+    data_training_path = params['abspath'] + '/data/TAU-urban-acoustic-scenes-2022-mobile-development/'
+    _, data_augmentation_transforms, _ = transforms(params)
+
+    if 'save_class_samples_tensorboard' in params and params['save_class_samples_tensorboard']:
+        audiodataset = Meta_dataset(
+            data_training_path + 'meta.csv', 
+            data_training_path + 'audio', 
+            data_augmentation_transforms, params['sample_rate'],
+            'cuda',
+            label_encoder=LabelEncoder(),
+            tensorboard=True
+            )
+        audiodataset._save_class_samples_tensorboard()

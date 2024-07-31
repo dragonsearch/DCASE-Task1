@@ -1,23 +1,7 @@
-"""
-A series of helper functions used throughout the course.
-
-If a function gets defined once and could be used over and over, it'll go in here.
-"""
 import torch
-import matplotlib.pyplot as plt
 import numpy as np
-
-from torch import nn
-
-import os
-import zipfile
-
-from pathlib import Path
 import pickle
-import requests
-# Walk through an image classification directory and find out how many files (images)
-# are in each subdirectory.
-import os
+
 
 def save_ckpt(model, optimizer, scheduler, PATH, params={}):
     """

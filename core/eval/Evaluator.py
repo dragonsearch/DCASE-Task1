@@ -1,20 +1,9 @@
 import torch as torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
-import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
-import torchvision.datasets as datasets
 import numpy as np
 import pandas as pd
 import pathlib
-import pickle
-from utils import load_ckpt, save_ckpt
-from torchmetrics.classification import (MulticlassF1Score, MulticlassPrecision, 
-                                            MulticlassRecall, MulticlassPrecisionRecallCurve,
-                                            MulticlassROC, MulticlassConfusionMatrix, MulticlassAccuracy)
-import time
-from utils import save_obj, save_ckpt, load_ckpt
+from tools.utils import load_ckpt
+from tools.utils import save_obj, load_ckpt
 
 
 class Evaluator():

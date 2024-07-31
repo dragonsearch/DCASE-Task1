@@ -1,11 +1,11 @@
-from torchaudio.transforms import Resample, Vol, TimeMasking, FrequencyMasking, TimeStretch, PitchShift
-from torchaudio.transforms import MelSpectrogram, AmplitudeToDB
+from torchaudio.transforms import Resample, Vol, TimeMasking, FrequencyMasking, PitchShift
 import torchaudio
 import torch
 import os
 import numpy as np
-import matplotlib.pyplot as plt
 from torch import nn
+from scipy.signal import convolve
+
 class log_mel(torch.nn.Module):
     def __init__(self,offset=1e-6, mel_spec=None):
         super().__init__()
@@ -324,16 +324,7 @@ class TimeShiftSpectrogram(torch.nn.Module):
             return signal
 
 
-from torchaudio.transforms import Resample, Vol, TimeMasking, FrequencyMasking, TimeStretch, PitchShift
-from torchaudio.transforms import MelSpectrogram, AmplitudeToDB
 
-import torch.nn.functional as F
-import torchaudio
-import torch
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.signal import convolve
 
 class CustomTransformAudio(torch.nn.Module):
     def forward(self, signal):
