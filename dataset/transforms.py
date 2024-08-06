@@ -309,19 +309,24 @@ class TimeShiftSpectrogram(torch.nn.Module):
 
         return filename 
 
-    def forward(self, signal):
-
-        # Shift the signal
-
-        if self.transformed:
-
-            return signal
-
-        else:
-
-            self.transform_all_clips()
-
-            return signal
+    def _get_audio_sample_filename(self, index):
+        """
+        The function `_get_audio_sample_filename` returns the filename of an audio sample at a given
+        index.
+        
+        :param index: The index parameter is the index of the row in the content dataframe that you want
+        to retrieve the audio sample filename from
+        :return: the value in the third column (index 2) of the DataFrame "content" at the specified
+        index.
+        """
+    
+        return self.content.iloc[index, 0].replace('audio/', '')
+        
+    def forward(self, index):
+        filename = self._get_audio_sample_filename(index)
+        path = self.sample_random()
+        signal = torch.load(path+filename+'.pt')
+        return signal
 
 
 
