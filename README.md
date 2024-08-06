@@ -35,8 +35,8 @@ More details in [Task description](https://dcase.community/challenge2023/task-lo
 This repo has been used for replicating some of the results and implementations of participants from the 2023 edition.
 
 In particular: 
-- [https://dcase.community/challenge2023/task-low-complexity-acoustic-scene-classification-results#Schmid2023](Winner: team CP-JKU)
-- [https://dcase.community/challenge2023/task-low-complexity-acoustic-scene-classification-results#Cai2023](Second place team: Cai) 
+- [Winner: team CP-JKU](https://dcase.community/challenge2023/task-low-complexity-acoustic-scene-classification-results#Schmid2023)
+- [Second place team: Cai](https://dcase.community/challenge2023/task-low-complexity-acoustic-scene-classification-results#Cai2023) 
 
 ### What implementations in particular and why are they useful?
 
