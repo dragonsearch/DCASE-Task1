@@ -97,7 +97,7 @@ Implemented as a convolution using a randomly sampled Impulse Response (''device
 
 #### Metrics
 
-Implemented through the <span style="color:red">torchmetric</span> template, it is a <span style="color:blue">Metric</span> object that performs tensor/torch operations. For this dataset:
+Implemented through the `torchmetrics` template, it is a `Metric` object that performs tensor/torch operations. For this dataset:
 
 - CityAccuracy: Requires num_cities=10. 
 - DevAccuracy: Requires num_devices=9. 
