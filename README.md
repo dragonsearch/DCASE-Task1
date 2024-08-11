@@ -1,13 +1,12 @@
-# DCASE-Task1
-DCASE Task 1 project.
+# DCASE-Task1-ELK
+DCASE Task 1. ELK project.
 @dragonsearch @RodrigoJuanes
-
 
 # What exactly is this?
 
 This is the pytorch code for our experiments on the [DCASE Community Challenge for 2023](https://dcase.community/). Specifically on the [Task 1 Acoustic Scene Classification](https://dcase.community/challenge2023/).
 
-# Ok, but how can this be useful to me?
+# How can this be useful to me?
 
 I can see several options:
 
@@ -103,14 +102,24 @@ Implemented through the `torchmetrics` template, it is a `Metric` object that pe
 - DevAccuracy: Requires num_devices=9. 
 
 #### Tensorboard support
-
+**Real time loss and accuracy**
 ![Real time loss and accuracy](./doc/img/hparams.png)
+**Plotting**
 ![Plotting](./doc/img/plots.png)
+**Hyperparam config save&compare**
 ![Hyperparam config save&compare](./doc/img/hparams.png)
 
 # You got me in, now what?
 
-**For codebase**: export QT_QPA_PLATFORM=offscreen
+**For codebase**:
+- export this variable (for tensorboard): `export QT_QPA_PLATFORM=offscreen
+- Tweak hyperparams and `create data/` folder
+- **READ** and **RUN** `main_opt.py`
+
+**For anything else**:
+- You are free to copy whateve is useful to you.
+- If you feel like helping on something (ie, docs), clone the repository, make and issue, tweak and suggest your changes. I'd be happy to review and check them, giving due credit.
+
 
 
 
